@@ -57,7 +57,7 @@ class PhotosManager {
      * @param {object} period - Période à charger {year, month}
      * @returns {Promise<Array>} - Photos chargées
      */
-    async loadPhotosForPeriod(period) {
+    async XloadPhotosForPeriod(period) {
         try {
             ui.showMessage(`Chargement des photos pour ${period.year}${period.month ? '-' + period.month : ''}...`, 'info');
             ui.updateProgress(0, 'Initialisation...', true);
