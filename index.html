@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📍 Gestionnaire GPS Photos Immich</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- En-tête -->
+        <header class="header">
+            <h1>📍 Gestionnaire GPS Photos Immich</h1>
+            <p>Gestion par mois - Copie/Colle GPS entre photos</p>
+        </header>
+
+        <!-- Section de navigation par dates -->
+        <section class="date-navigation">
+            <h2>📅 Navigation par dates</h2>
+            
+            <div class="date-controls">
+                <button id="loadPeriodsBtn" class="btn btn-primary">
+                    🔄 Charger les périodes disponibles
+                </button>
+                
+                <div class="selectors" id="dateSelectors" style="display: none;">
+                    <select id="yearSelect" disabled>
+                        <option value="">Sélectionner une année...</option>
+                    </select>
+                    
+                    <select id="monthSelect" disabled>
+                        <option value="">Sélectionner un mois...</option>
+                    </select>
+                    
+                    <button id="loadPhotosBtn" class="btn btn-success" disabled>
+                        📥 Charger les photos de ce mois
+                    </button>
+                </div>
+            </div>
+
+            <div id="periodInfo" class="info-box" style="display: none;"></div>
+        </section>
+
+        <!-- Indicateur de progression -->
+        <div class="progress-container" id="progressContainer" style="display: none;">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText"></div>
+        </div>
+
+        <!-- Statistiques -->
+        <section class="stats" id="statsSection" style="display: none;">
+            <div class="stat-card">
+                <div class="stat-number" id="totalPhotos">0</div>
+                <div class="stat-label">Photos chargées</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="analyzedPhotos">0</div>
+                <div class="stat-label">Analysées</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="gpsPhotos">0</div>
+                <div class="stat-label">Avec GPS</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="noGpsPhotos">0</div>
+                <div class="stat-label">Sans GPS</div>
+            </div>
+        </section>
+
+        <!-- Contrôles des photos -->
+        <section class="photo-controls" id="photoControls" style="display: none;">
+            <h2>🖼️ Gestion des photos</h2>
+            
+            <div class="controls-row">
+                <div class="filter-buttons">
+                    <button class="btn btn-filter active" data-filter="all">Toutes</button>
+                    <button class="btn btn-filter" data-filter="gps">Avec GPS</button>
+                    <button class="btn btn-filter" data-filter="no-gps">Sans GPS</button>
+                </div>
+                
+                <div class="action-buttons">
+                    <button id="analyzeGpsBtn" class="btn btn-warning">
+                        🔍 Analyser GPS détaillé
+                    </button>
+                    <button id="copyModeBtn" class="btn btn-mode">
+                        📋 Mode Copie GPS
+                    </button>
+                    <button id="pasteModeBtn" class="btn btn-mode" disabled>
+                        📍 Mode Collage GPS
+                    </button>
+                </div>
+            </div>
+
+            <!-- Info GPS copié -->
+            <div class="clipboard-info" id="clipboardInfo" style="display: none;">
+                <div class="clipboard-content">
+                    <span class="clipboard-icon">📋</span>
+                    <div class="clipboard-details">
+                        <div>GPS copié depuis : <strong id="clipboardSource"></strong></div>
+                        <div>Coordonnées : <code id="clipboardCoords"></code></div>
+                        <div class="clipboard-hint">Cliquez sur une photo sans GPS pour coller</div>
+                    </div>
+                    <button class="btn-clear" onclick="clearClipboard()">✕</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Grille des photos -->
+        <section class="photos-section" id="photosSection" style="display: none;">
+            <div class="photos-grid" id="photosGrid"></div>
+            
+            <!-- Pagination si beaucoup de photos -->
+            <div class="pagination" id="pagination" style="display: none;">
+                <button id="prevPageBtn" class="btn btn-secondary">‹ Précédent</button>
+                <span id="pageInfo">Page 1 sur 1</span>
+                <button id="nextPageBtn" class="btn btn-secondary">Suivant ›</button>
+            </div>
+        </section>
+
+        <!-- Section d'export -->
+        <section class="export-section" id="exportSection" style="display: none;">
+            <h2>📥 Export des données GPS</h2>
+            <div class="export-buttons">
+                <button id="exportCsvBtn" class="btn btn-export">📊 Export CSV</button>
+                <button id="exportJsonBtn" class="btn btn-export">📋 Export JSON</button>
+                <button id="exportKmlBtn" class="btn btn-export">🗺️ Export KML</button>
+            </div>
+        </section>
+    </div>
+
+    <!-- Zone de messages -->
+    <div id="messageContainer"></div>
+
+    <!-- Modal de confirmation pour le collage GPS -->
+    <div class="modal" id="confirmModal" style="display: none;">
+        <div class="modal-content">
+            <h3>📍 Confirmer le collage GPS</h3>
+            <p>Voulez-vous vraiment coller les coordonnées GPS sur cette photo ?</p>
+            <div class="modal-coords" id="modalCoords"></div>
+            <div class="modal-buttons">
+                <button class="btn btn-success" id="confirmPasteBtn">✅ Confirmer</button>
+                <button class="btn btn-secondary" id="cancelPasteBtn">❌ Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="api.js"></script>
+    <script src="ui.js"></script>
+    <script src="photos.js"></script>
+    <script src="gps.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
