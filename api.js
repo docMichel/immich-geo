@@ -205,6 +205,132 @@ class ImmichAPI {
         const { year, month } = period;
         const periodName = month ? `${year}-${month}` : year;
 
+        console.log(`📅 Chargement photos pour ${periodName} via TIMELINE`);
+
+        // Étape 1: Trouver les buckets correspondants
+        const timeBuckets = await this.getTimeBuckets();
+        let targetBuckets = [];
+
+        if (month) {
+            // Mois spécifique
+            const targetBucket = `${year}-${month.padStart(2, '0')}`;
+            targetBuckets = timeBuckets.filter(bucket =>
+                bucket.timeBucket.startsWith(targetBucket)
+            );
+        } else {
+            // Toute l'année
+            targetBuckets = timeBuckets.filter(bucket =>
+                bucket.timeBucket.startsWith(year + '-')
+            );
+        }
+
+        if (targetBuckets.length === 0) {
+            console.warn(`Aucun bucket trouvé pour ${periodName}`);
+            return [];
+        }
+
+        const expectedTotal = targetBuckets.reduce((sum, bucket) => sum + bucket.count, 0);
+        console.log(`🎯 ${targetBuckets.length} buckets trouvés, ${expectedTotal} photos attendues`);
+        console.log('Buckets détail:', targetBuckets);
+
+        // Étape 2: NOUVELLE APPROCHE - Utiliser l'endpoint timeline directement
+        let allPhotos = [];
+
+        try {
+            // Construire les paramètres pour l'endpoint timeline
+            for (const bucket of targetBuckets) {
+                console.log(`📅 Chargement bucket: ${bucket.timeBucket} (${bucket.count} photos)`);
+
+                // Utiliser l'endpoint timeline/bucket pour ce bucket spécifique
+                const bucketPhotos = await this.getTimelineBucket(bucket.timeBucket, bucket.count);
+
+                if (bucketPhotos && bucketPhotos.length > 0) {
+                    console.log(`✅ ${bucketPhotos.length} photos récupérées pour ${bucket.timeBucket}`);
+                    allPhotos = allPhotos.concat(bucketPhotos);
+
+                    if (onProgress) {
+                        onProgress({
+                            bucket: bucket.timeBucket,
+                            photosThisBucket: bucketPhotos.length,
+                            totalFound: allPhotos.length,
+                            period: periodName,
+                            expectedTotal
+                        });
+                    }
+                }
+
+                // Pause entre buckets
+                await this.delay(this.requestDelay);
+            }
+
+        } catch (error) {
+            console.error('Erreur chargement via timeline:', error);
+
+            // FALLBACK: Méthode search avec filtrage strict
+            console.log('🔄 Fallback vers méthode search...');
+            allPhotos = await this.loadPhotosViaSearchFallback(period, onProgress);
+        }
+
+        // Trier par date (plus récentes en premier)
+        allPhotos.sort((a, b) => new Date(b.fileCreatedAt) - new Date(a.fileCreatedAt));
+
+        console.log(`✅ ${allPhotos.length} photos chargées pour ${periodName} (attendu: ${expectedTotal})`);
+        return allPhotos;
+    }
+
+    /**
+     * Nouvelle méthode : récupérer un bucket timeline spécifique
+     * @param {string} timeBucket - Bucket (ex: "2021-05-01T00:00:00.000Z")
+     * @param {number} expectedCount - Nombre attendu de photos
+     * @returns {Promise<Array>} - Photos du bucket
+     */
+    async getTimelineBucket(timeBucket, expectedCount) {
+        try {
+            // Essayer différents endpoints timeline
+            const endpoints = [
+                `/timeline/bucket`, // Endpoint principal
+                `/timeline/buckets/${encodeURIComponent(timeBucket)}`, // Endpoint spécifique
+                `/assets/timeline/${encodeURIComponent(timeBucket)}` // Endpoint alternatif
+            ];
+
+            for (const endpoint of endpoints) {
+                try {
+                    console.log(`🔍 Test endpoint: ${endpoint}`);
+
+                    const response = await this.makeRequest(endpoint, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            timeBucket: timeBucket,
+                            size: expectedCount + 10 // Un peu plus pour être sûr
+                        })
+                    });
+
+                    if (response && (response.length > 0 || response.assets)) {
+                        const photos = response.assets || response;
+                        console.log(`✅ Endpoint ${endpoint} : ${photos.length} photos`);
+                        return photos;
+                    }
+
+                } catch (endpointError) {
+                    console.log(`❌ Endpoint ${endpoint} failed:`, endpointError.message);
+                    continue;
+                }
+            }
+
+            // Si aucun endpoint timeline ne marche, utiliser la méthode search ciblée
+            console.log('⚠️ Tous les endpoints timeline ont échoué, utilisation de search ciblé');
+            return await this.getPhotosViaTargetedSearch(timeBucket, expectedCount);
+
+        } catch (error) {
+            console.error(`Erreur récupération bucket ${timeBucket}:`, error);
+            return [];
+        }
+    }
+
+    async yloadPhotosForPeriod(period, onProgress = null) {
+        const { year, month } = period;
+        const periodName = month ? `${year}-${month}` : year;
+
         console.log(`📅 Chargement photos pour ${periodName}`);
 
         // Étape 1: Trouver les buckets correspondant à la période
