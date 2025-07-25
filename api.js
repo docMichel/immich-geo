@@ -201,193 +201,6 @@ class ImmichAPI {
      * @param {Function} onProgress - Callback de progression
      * @returns {Promise<Array>} - Liste des photos de la période
      */
-    async loadPhotosForPeriod(period, onProgress = null) {
-        const { year, month } = period;
-        const periodName = month ? `${year}-${month}` : year;
-
-        console.log(`📅 Chargement photos pour ${periodName} - Version simplifiée`);
-
-        // Conversion en nombres pour la comparaison
-        const targetYear = parseInt(year, 10);
-        const targetMonth = month ? parseInt(month, 10) : null;
-
-        console.log(`🎯 Recherche: année ${targetYear}, mois ${targetMonth}`);
-
-        let allPhotos = [];
-        let page = 1;
-        let hasMore = true;
-        let totalTested = 0;
-
-        // Boucle identique à ton test qui marche
-        while (hasMore && page <= 30) {
-            try {
-                console.log(`🔍 Page ${page}...`);
-
-                // Recherche EXACTEMENT comme dans ton test
-                const result = await this.searchPhotos({
-                    page,
-                    size: 1000,
-                    query: '' // Pas de terme, comme dans ton test
-                });
-
-                if (result.photos.length === 0) {
-                    console.log(`Fin des photos à la page ${page}`);
-                    hasMore = false;
-                    break;
-                }
-
-                totalTested += result.photos.length;
-
-                // Filtrage EXACTEMENT comme dans ton test
-                const periodPhotos = result.photos.filter(photo => {
-                    try {
-                        const photoDate = new Date(photo.fileCreatedAt || photo.localDateTime);
-
-                        if (isNaN(photoDate.getTime())) {
-                            return false;
-                        }
-
-                        const photoYear = photoDate.getFullYear();
-                        const photoMonth = photoDate.getMonth() + 1; // 1-12, comme dans ton test
-
-                        // Debug pour mai 2021 spécifiquement
-                        if (targetYear === 2021 && targetMonth === 5 && photoYear === 2021 && photoMonth === 5) {
-                            console.log(`✅ Photo mai 2021 trouvée: ${photo.originalFileName} - ${photo.fileCreatedAt}`);
-                        }
-
-                        // Comparaison exacte
-                        if (targetMonth !== null) {
-                            // Mois spécifique
-                            return photoYear === targetYear && photoMonth === targetMonth;
-                        } else {
-                            // Toute l'année
-                            return photoYear === targetYear;
-                        }
-
-                    } catch (error) {
-                        console.warn(`Erreur parsing date pour photo ${photo.id}:`, error);
-                        return false;
-                    }
-                });
-
-                // Ajouter les photos trouvées
-                if (periodPhotos.length > 0) {
-                    allPhotos = allPhotos.concat(periodPhotos);
-                    console.log(`✅ Page ${page}: ${periodPhotos.length} photos de ${periodName} (Total: ${allPhotos.length})`);
-                } else {
-                    console.log(`Page ${page}: 0 photos de ${periodName} sur ${result.photos.length} photos`);
-                }
-
-                // Callback de progression
-                if (onProgress) {
-                    onProgress({
-                        page,
-                        photosThisPage: periodPhotos.length,
-                        allPhotosThisPage: result.photos.length,
-                        totalFound: allPhotos.length,
-                        totalTested,
-                        period: periodName,
-                        expectedTotal: 'inconnu'
-                    });
-                }
-
-                page++;
-                hasMore = result.hasMore;
-
-                // Petite pause pour éviter de surcharger l'API
-                await this.delay(50);
-
-            } catch (error) {
-                console.error(`Erreur page ${page}:`, error);
-                hasMore = false;
-            }
-        }
-
-        // Trier par date (plus récentes en premier)
-        allPhotos.sort((a, b) => new Date(b.fileCreatedAt) - new Date(a.fileCreatedAt));
-
-        console.log(`✅ FINAL: ${allPhotos.length} photos chargées pour ${periodName} (${totalTested} photos testées)`);
-
-        return allPhotos;
-    }
-
-
-    async ZloadPhotosForPeriod(period, onProgress = null) {
-        const { year, month } = period;
-        const periodName = month ? `${year}-${month}` : year;
-
-        console.log(`📅 Chargement photos pour ${periodName} via TIMELINE`);
-
-        // Étape 1: Trouver les buckets correspondants
-        const timeBuckets = await this.getTimeBuckets();
-        let targetBuckets = [];
-
-        if (month) {
-            // Mois spécifique
-            const targetBucket = `${year}-${month.padStart(2, '0')}`;
-            targetBuckets = timeBuckets.filter(bucket =>
-                bucket.timeBucket.startsWith(targetBucket)
-            );
-        } else {
-            // Toute l'année
-            targetBuckets = timeBuckets.filter(bucket =>
-                bucket.timeBucket.startsWith(year + '-')
-            );
-        }
-
-        if (targetBuckets.length === 0) {
-            console.warn(`Aucun bucket trouvé pour ${periodName}`);
-            return [];
-        }
-
-        const expectedTotal = targetBuckets.reduce((sum, bucket) => sum + bucket.count, 0);
-        console.log(`🎯 ${targetBuckets.length} buckets trouvés, ${expectedTotal} photos attendues`);
-        console.log('Buckets détail:', targetBuckets);
-
-        // Étape 2: NOUVELLE APPROCHE - Utiliser l'endpoint timeline directement
-        let allPhotos = [];
-
-        try {
-            // Construire les paramètres pour l'endpoint timeline
-            for (const bucket of targetBuckets) {
-                console.log(`📅 Chargement bucket: ${bucket.timeBucket} (${bucket.count} photos)`);
-
-                // Utiliser l'endpoint timeline/bucket pour ce bucket spécifique
-                const bucketPhotos = await this.getTimelineBucket(bucket.timeBucket, bucket.count);
-
-                if (bucketPhotos && bucketPhotos.length > 0) {
-                    console.log(`✅ ${bucketPhotos.length} photos récupérées pour ${bucket.timeBucket}`);
-                    allPhotos = allPhotos.concat(bucketPhotos);
-
-                    if (onProgress) {
-                        onProgress({
-                            bucket: bucket.timeBucket,
-                            photosThisBucket: bucketPhotos.length,
-                            totalFound: allPhotos.length,
-                            period: periodName,
-                            expectedTotal
-                        });
-                    }
-                }
-
-                // Pause entre buckets
-                await this.delay(this.requestDelay);
-            }
-
-        } catch (error) {
-            console.error('Erreur chargement via timeline:', error);
-
-            // FALLBACK: Méthode search avec filtrage strict
-            console.log('🔄 Fallback vers méthode search...');
-            allPhotos = await this.loadPhotosViaSearchFallback(period, onProgress);
-        }
-
-        // Trier par date (plus récentes en premier)
-        allPhotos.sort((a, b) => new Date(b.fileCreatedAt) - new Date(a.fileCreatedAt));
-
-        console.log(`✅ ${allPhotos.length} photos chargées pour ${periodName} (attendu: ${expectedTotal})`);
-        return allPhotos;
-    }
 
     /**
      * Nouvelle méthode : récupérer un bucket timeline spécifique
@@ -438,282 +251,97 @@ class ImmichAPI {
         }
     }
 
-    async yloadPhotosForPeriod(period, onProgress = null) {
+    async loadPhotosForPeriod(period, onProgress = null) {
         const { year, month } = period;
         const periodName = month ? `${year}-${month}` : year;
 
-        console.log(`📅 Chargement photos pour ${periodName}`);
+        console.log(`📅 Chargement photos pour ${periodName} - Version corrigée`);
 
-        // Étape 1: Trouver les buckets correspondant à la période
-        const timeBuckets = await this.getTimeBuckets();
-        let targetBuckets = [];
+        // Conversion en nombres pour la comparaison
+        const targetYear = parseInt(year, 10);
+        const targetMonth = month ? parseInt(month, 10) : null;
 
-        if (month) {
-            // Mois spécifique - FIX: formater correctement le mois
-            const targetBucket = `${year}-${month.padStart(2, '0')}`;
-            targetBuckets = timeBuckets.filter(bucket =>
-                bucket.timeBucket.startsWith(targetBucket)
-            );
-            console.log(`Recherche buckets pour ${targetBucket}:`, targetBuckets);
-        } else {
-            // Toute l'année
-            targetBuckets = timeBuckets.filter(bucket =>
-                bucket.timeBucket.startsWith(year + '-')
-            );
-        }
+        console.log(`🎯 Recherche: année ${targetYear}, mois ${targetMonth}`);
 
-        if (targetBuckets.length === 0) {
-            console.warn(`Aucun bucket trouvé pour ${periodName}`);
-            return [];
-        }
-
-        const expectedTotal = targetBuckets.reduce((sum, bucket) => sum + bucket.count, 0);
-        console.log(`🎯 ${targetBuckets.length} buckets trouvés, ${expectedTotal} photos attendues`);
-
-        // Étape 2: Charger les photos avec une approche plus robuste
         let allPhotos = [];
         let page = 1;
         let hasMore = true;
-        let consecutiveEmptyPages = 0;
+        let totalTested = 0;
 
-        while (hasMore && page <= 50 && consecutiveEmptyPages < 3) { // Augmenter limite et ajouter sécurité
+        // Recherche page par page sans terme de recherche
+        while (hasMore && page <= 30) {
             try {
-                const result = await this.searchPhotos({ page, size: 1000 }); // Augmenter taille
+                console.log(`🔍 Page ${page}...`);
+
+                const result = await this.searchPhotos({
+                    page,
+                    size: 1000,
+                    query: '' // Pas de terme de recherche
+                });
 
                 if (result.photos.length === 0) {
-                    consecutiveEmptyPages++;
+                    console.log(`Fin des photos à la page ${page}`);
                     hasMore = false;
                     break;
                 }
 
-                consecutiveEmptyPages = 0; // Reset si on trouve des photos
+                totalTested += result.photos.length;
 
-                // Filtrage CORRIGÉ avec debug amélioré
+                // Filtrage strict par date
                 const periodPhotos = result.photos.filter(photo => {
                     try {
                         const photoDate = new Date(photo.fileCreatedAt || photo.localDateTime);
 
-                        // FIX: Validation de date plus robuste
                         if (isNaN(photoDate.getTime())) {
-                            console.warn(`Date invalide pour photo ${photo.id}:`, photo.fileCreatedAt, photo.localDateTime);
                             return false;
                         }
 
                         const photoYear = photoDate.getFullYear();
                         const photoMonth = photoDate.getMonth() + 1; // 1-12
 
-                        // FIX: Comparaison numérique au lieu de string
-                        const targetYear = parseInt(year, 10);
-                        const targetMonth = month ? parseInt(month, 10) : null;
-
-                        // Debug spécial pour mai 2021
-                        if (targetYear === 2021 && targetMonth === 5) {
-                            console.log(`Debug mai 2021 - Photo ${photo.filename}:`, {
-                                fileCreatedAt: photo.fileCreatedAt,
-                                localDateTime: photo.localDateTime,
-                                parsedDate: photoDate.toISOString(),
-                                photoYear,
-                                photoMonth,
-                                targetYear,
-                                targetMonth,
-                                yearMatch: photoYear === targetYear,
-                                monthMatch: photoMonth === targetMonth
-                            });
+                        // Debug pour mai 2021
+                        if (targetYear === 2021 && targetMonth === 5 && photoYear === 2021 && photoMonth === 5) {
+                            console.log(`✅ Photo mai 2021 trouvée: ${photo.originalFileName} - ${photo.fileCreatedAt}`);
                         }
 
-                        // Vérifier l'année
-                        if (photoYear !== targetYear) return false;
-
-                        // Si mois spécifié, vérifier aussi le mois
+                        // Comparaison exacte
                         if (targetMonth !== null) {
-                            const matches = photoMonth === targetMonth;
-                            return matches;
+                            // Mois spécifique
+                            return photoYear === targetYear && photoMonth === targetMonth;
+                        } else {
+                            // Toute l'année
+                            return photoYear === targetYear;
                         }
 
-                        return true;
-
                     } catch (error) {
-                        console.warn(`Erreur filtrage photo ${photo.id}:`, error);
+                        console.warn(`Erreur parsing date pour photo ${photo.id}:`, error);
                         return false;
                     }
                 });
 
-                // FIX: Messages de progression plus informatifs
-                const periodPhotosCount = periodPhotos.length;
-                const allPhotosFromAPI = result.photos.length;
-
-                if (periodPhotosCount > 0) {
+                // Ajouter les photos trouvées
+                if (periodPhotos.length > 0) {
                     allPhotos = allPhotos.concat(periodPhotos);
+                    console.log(`✅ Page ${page}: ${periodPhotos.length} photos de ${periodName} (Total: ${allPhotos.length})`);
                 }
 
-                if (onProgress) {
-                    onProgress({
-                        page,
-                        photosThisPage: periodPhotosCount, // Photos de la période sur cette page
-                        allPhotosThisPage: allPhotosFromAPI, // Toutes les photos de cette page
-                        totalFound: allPhotos.length,
-                        period: periodName,
-                        expectedTotal
-                    });
-                }
-
-                // Message de debug plus clair
-                console.log(`Page ${page}: ${periodPhotosCount}/${allPhotosFromAPI} photos de ${periodName} (Total période: ${allPhotos.length})`);
-
-                page++;
-                hasMore = result.hasMore;
-
-                // Optimisation : arrêter si on a assez de photos
-                if (allPhotos.length >= expectedTotal && expectedTotal > 0) {
-                    console.log(`✅ Quota atteint: ${allPhotos.length}/${expectedTotal}`);
-                    break;
-                }
-
-                // Pause entre pages
-                await this.delay(this.requestDelay);
-
-            } catch (error) {
-                console.error(`Erreur page ${page}:`, error);
-                consecutiveEmptyPages++;
-                if (consecutiveEmptyPages >= 3) {
-                    console.warn('Trop d\'erreurs consécutives, arrêt du chargement');
-                    break;
-                }
-            }
-        }
-
-        // Trier par date (plus récentes en premier)
-        allPhotos.sort((a, b) => new Date(b.fileCreatedAt) - new Date(a.fileCreatedAt));
-
-        console.log(`✅ ${allPhotos.length} photos chargées pour ${periodName} (attendu: ${expectedTotal})`);
-
-        // Debug final pour mai 2021
-        if (year === "2021" && month === "05") {
-            console.log('=== DEBUG FINAL MAI 2021 ===');
-            console.log('Photos trouvées:', allPhotos.length);
-            console.log('Premiers résultats:', allPhotos.slice(0, 3).map(p => ({
-                filename: p.filename,
-                date: p.fileCreatedAt,
-                parsed: new Date(p.fileCreatedAt).toISOString()
-            })));
-        }
-
-        return allPhotos;
-    }
-    async XloadPhotosForPeriod(period, onProgress = null) {
-        const { year, month } = period;
-        const periodName = month ? `${year}-${month}` : year;
-
-        console.log(`📅 Chargement photos pour ${periodName}`);
-
-        // Étape 1: Trouver les buckets correspondant à la période
-        const timeBuckets = await this.getTimeBuckets();
-        let targetBuckets = [];
-
-        if (month) {
-            // Mois spécifique
-            const targetBucket = `${year}-${month.padStart(2, '0')}`;
-            targetBuckets = timeBuckets.filter(bucket =>
-                bucket.timeBucket.startsWith(targetBucket)
-            );
-        } else {
-            // Toute l'année
-            targetBuckets = timeBuckets.filter(bucket =>
-                bucket.timeBucket.startsWith(year + '-')
-            );
-        }
-
-        if (targetBuckets.length === 0) {
-            console.warn(`Aucun bucket trouvé pour ${periodName}`);
-            return [];
-        }
-
-        const expectedTotal = targetBuckets.reduce((sum, bucket) => sum + bucket.count, 0);
-        console.log(`🎯 ${targetBuckets.length} buckets trouvés, ${expectedTotal} photos attendues`);
-
-        // Étape 2: Charger les photos par petits lots avec filtrage strict
-        let allPhotos = [];
-        let page = 1;
-        let hasMore = true;
-        let foundForPeriod = 0;
-
-        while (hasMore && page <= 20 && foundForPeriod < expectedTotal + 100) {
-            try {
-                const result = await this.searchPhotos({ page, size: 500 }); // Taille réduite
-
-                if (result.photos.length === 0) {
-                    hasMore = false;
-                    break;
-                }
-
-                // Filtrage STRICT par date avec debug
-                const periodPhotos = result.photos.filter(photo => {
-                    try {
-                        const photoDate = new Date(photo.fileCreatedAt || photo.localDateTime);
-
-                        // Debug pour comprendre le problème de mai 2021
-                        if (year === "2021" && month === "05" && page === 1) {
-                            console.log(`Debug photo ${photo.filename}:`, {
-                                fileCreatedAt: photo.fileCreatedAt,
-                                localDateTime: photo.localDateTime,
-                                parsedDate: photoDate.toISOString(),
-                                year: photoDate.getFullYear(),
-                                month: photoDate.getMonth() + 1
-                            });
-                        }
-
-                        const photoYear = photoDate.getFullYear().toString();
-
-                        // Vérifier l'année
-                        if (photoYear !== year) return false;
-
-                        // Si mois spécifié, vérifier aussi le mois
-                        if (month) {
-                            const photoMonth = (photoDate.getMonth() + 1).toString().padStart(2, '0');
-                            const matches = photoMonth === month;
-
-                            // Debug supplémentaire pour mai 2021
-                            if (year === "2021" && month === "05" && page <= 2) {
-                                console.log(`Photo ${photo.filename}: mois calculé ${photoMonth}, recherché ${month}, match: ${matches}`);
-                            }
-
-                            return matches;
-                        }
-
-                        return true;
-
-                    } catch (error) {
-                        console.warn(`Date invalide pour photo ${photo.id}:`, photo.fileCreatedAt, error);
-                        return false;
-                    }
-                });
-
-                allPhotos = allPhotos.concat(periodPhotos);
-                foundForPeriod += periodPhotos.length;
-
+                // Callback de progression
                 if (onProgress) {
                     onProgress({
                         page,
                         photosThisPage: periodPhotos.length,
+                        allPhotosThisPage: result.photos.length,
                         totalFound: allPhotos.length,
-                        period: periodName,
-                        expectedTotal
+                        totalTested,
+                        period: periodName
                     });
                 }
-
-                console.log(`Page ${page}: ${periodPhotos.length}/${result.photos.length} photos pour ${periodName} (Total: ${allPhotos.length})`);
 
                 page++;
                 hasMore = result.hasMore;
 
-                // Arrêter si on a atteint le nombre attendu
-                if (foundForPeriod >= expectedTotal) {
-                    console.log(`✅ Nombre attendu atteint: ${foundForPeriod}/${expectedTotal}`);
-                    break;
-                }
-
-                // Pause entre pages
-                await this.delay(this.requestDelay);
+                // Petite pause
+                await this.delay(50);
 
             } catch (error) {
                 console.error(`Erreur page ${page}:`, error);
@@ -724,10 +352,10 @@ class ImmichAPI {
         // Trier par date (plus récentes en premier)
         allPhotos.sort((a, b) => new Date(b.fileCreatedAt) - new Date(a.fileCreatedAt));
 
-        console.log(`✅ ${allPhotos.length} photos chargées pour ${periodName} (attendu: ${expectedTotal})`);
+        console.log(`✅ FINAL: ${allPhotos.length} photos chargées pour ${periodName} (${totalTested} photos testées)`);
+
         return allPhotos;
     }
-
     /**
      * Filtre les photos par période (année/mois)
      * @param {Array} photos - Photos à filtrer
