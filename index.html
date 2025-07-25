@@ -4,14 +4,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>📍 Gestionnaire GPS Photos Immich</title>
-    <link rel="stylesheet" href="styles.css">
+    
+    <!-- ANTI-CACHE : Empêcher la mise en cache -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
+    <!-- CSS avec timestamp anti-cache -->
+    <link rel="stylesheet" href="styles.css?v=" id="css-link">
 </head>
 <body>
     <div class="container">
-        <!-- En-tête -->
+        <!-- En-tête avec boutons de développement -->
         <header class="header">
             <h1>📍 Gestionnaire GPS Photos Immich</h1>
             <p>Gestion par mois - Copie/Colle GPS entre photos</p>
+            
+            <!-- Boutons de développement -->
+            <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                <button id="changeTokenBtn" class="btn" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">
+                    🔑 Changer le token d'API
+                </button>
+                <button id="clearCacheBtn" class="btn" style="background: rgba(255,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.3);">
+                    🗑️ Vider le cache
+                </button>
+                <button id="reloadAppBtn" class="btn" style="background: rgba(0,255,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.3);">
+                    🔄 Recharger l'app
+                </button>
+                <button id="debugInfoBtn" class="btn" style="background: rgba(0,0,255,0.3); color: white; border: 1px solid rgba(255,255,255,0.3);">
+                    🐛 Info Debug
+                </button>
+            </div>
         </header>
 
         <!-- Section de navigation par dates -->
@@ -146,11 +169,132 @@
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="api.js"></script>
-    <script src="ui.js"></script>
-    <script src="photos.js"></script>
-    <script src="gps.js"></script>
-    <script src="app.js"></script>
+    <!-- Scripts avec timestamps anti-cache -->
+    <script>
+        // SYSTÈME ANTI-CACHE POUR DÉVELOPPEMENT
+        (function() {
+            const timestamp = Date.now();
+            console.log('🔄 Chargement avec timestamp anti-cache:', timestamp);
+            
+            // Mettre à jour le CSS avec timestamp
+            document.getElementById('css-link').href = 'styles.css?v=' + timestamp;
+            
+            // Fonction pour charger les scripts avec anti-cache
+            function loadScript(src) {
+                return new Promise((resolve, reject) => {
+                    const script = document.createElement('script');
+                    script.src = src + '?v=' + timestamp;
+                    script.onload = resolve;
+                    script.onerror = reject;
+                    document.head.appendChild(script);
+                });
+            }
+            
+            // Charger tous les scripts dans l'ordre
+            async function loadAllScripts() {
+                try {
+                    console.log('📥 Chargement des scripts...');
+                    await loadScript('api.js');
+                    console.log('✅ api.js chargé');
+                    
+                    await loadScript('ui.js');
+                    console.log('✅ ui.js chargé');
+                    
+                    await loadScript('photos.js');
+                    console.log('✅ photos.js chargé');
+                    
+                    await loadScript('gps.js');
+                    console.log('✅ gps.js chargé');
+                    
+                    await loadScript('app.js');
+                    console.log('✅ app.js chargé');
+                    
+                    console.log('🎉 Tous les scripts chargés avec succès');
+                    
+                    // Ajouter les gestionnaires pour les boutons de développement
+                    addDevButtons();
+                    
+                } catch (error) {
+                    console.error('❌ Erreur chargement script:', error);
+                    alert('Erreur de chargement des scripts. Vérifiez la console.');
+                }
+            }
+            
+            // Ajouter les fonctionnalités des boutons de développement
+            function addDevButtons() {
+                // Bouton vider cache
+                document.getElementById('clearCacheBtn').addEventListener('click', function() {
+                    if (confirm('Vider tout le cache du navigateur pour cette application ?')) {
+                        // Vider localStorage
+                        Object.keys(localStorage).forEach(key => {
+                            if (key.includes('immich') || key.includes('gps')) {
+                                localStorage.removeItem(key);
+                            }
+                        });
+                        
+                        // Vider sessionStorage
+                        sessionStorage.clear();
+                        
+                        // Tenter de vider le cache du navigateur (ne marche que sur certains navigateurs)
+                        if ('caches' in window) {
+                            caches.keys().then(names => {
+                                names.forEach(name => {
+                                    caches.delete(name);
+                                });
+                            });
+                        }
+                        
+                        alert('Cache vidé ! La page va se recharger.');
+                        location.reload(true);
+                    }
+                });
+                
+                // Bouton recharger app
+                document.getElementById('reloadAppBtn').addEventListener('click', function() {
+                    location.reload(true);
+                });
+                
+                // Bouton debug info
+                document.getElementById('debugInfoBtn').addEventListener('click', function() {
+                    const info = {
+                        timestamp: new Date().toISOString(),
+                        userAgent: navigator.userAgent,
+                        localStorage: Object.keys(localStorage).filter(k => k.includes('immich') || k.includes('gps')),
+                        appState: window.debugApp ? window.debugApp.getState() : 'App non initialisée'
+                    };
+                    
+                    console.log('🐛 DEBUG INFO:', info);
+                    alert('Informations de debug dans la console (F12)');
+                });
+                
+                console.log('🔧 Boutons de développement activés');
+            }
+            
+            // Démarrer le chargement
+            loadAllScripts();
+            
+            // Ajouter des raccourcis clavier pour le développement
+            document.addEventListener('keydown', function(e) {
+                // Ctrl+Shift+R : Rechargement forcé
+                if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+                    e.preventDefault();
+                    location.reload(true);
+                }
+                
+                // Ctrl+Shift+C : Vider cache
+                if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+                    e.preventDefault();
+                    document.getElementById('clearCacheBtn').click();
+                }
+                
+                // Ctrl+Shift+D : Debug info
+                if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+                    e.preventDefault();
+                    document.getElementById('debugInfoBtn').click();
+                }
+            });
+            
+        })();
+    </script>
 </body>
 </html>

@@ -10,9 +10,11 @@
  */
 
 class ImmichAPI {
-    constructor() {
+constructor() {
         this.baseURL = '/immich-api/api';
-        this.requestDelay = 100; // Pause entre requêtes (ms)
+        this.requestDelay = 100;
+        this.apiKey = null; // Nouveau : stockage du token
+        this.authPrompt = null; // Promesse pour éviter les multiples prompts
     }
 
     /**
@@ -30,7 +32,7 @@ class ImmichAPI {
                     ...options.headers
                 },
                 ...options
-            });
+            });Desktop/lacie/VRAC/100D3100/
 
             if (!response.ok) {
                 throw new Error(`API Error ${response.status}: ${response.statusText}`);
@@ -251,9 +253,15 @@ class ImmichAPI {
         }
     }
 
+    /**
+    * CORRECTIONS POUR API.JS - Méthode loadPhotosForPeriod
+    */
+
+    // Dans la classe ImmichAPI, remplacer la méthode loadPhotosForPeriod par celle-ci :
+
     async loadPhotosForPeriod(period, onProgress = null) {
         const { year, month } = period;
-        const periodName = month ? `${year}-${month}` : year;
+        const periodName = month ? `${year}-${month.padStart(2, '0')}` : year;
 
         console.log(`📅 Chargement photos pour ${periodName} - Version corrigée`);
 
@@ -261,47 +269,81 @@ class ImmichAPI {
         const targetYear = parseInt(year, 10);
         const targetMonth = month ? parseInt(month, 10) : null;
 
-        console.log(`🎯 Recherche: année ${targetYear}, mois ${targetMonth}`);
+        console.log(`🎯 Recherche: année ${targetYear}, mois ${targetMonth || 'toute l\'année'}`);
 
         let allPhotos = [];
         let page = 1;
         let hasMore = true;
         let totalTested = 0;
+        let consecutiveEmptyPages = 0;
 
         // Recherche page par page sans terme de recherche
-        while (hasMore && page <= 30) {
+        while (hasMore && page <= 50 && consecutiveEmptyPages < 3) {
             try {
                 console.log(`🔍 Page ${page}...`);
 
                 const result = await this.searchPhotos({
                     page,
                     size: 1000,
-                    query: '' // Pas de terme de recherche
+                    query: '', // Pas de terme de recherche
+                    type: 'IMAGE'
                 });
 
                 if (result.photos.length === 0) {
-                    console.log(`Fin des photos à la page ${page}`);
-                    hasMore = false;
-                    break;
+                    consecutiveEmptyPages++;
+                    console.log(`Page ${page} vide (${consecutiveEmptyPages}/3 pages vides consécutives)`);
+
+                    if (consecutiveEmptyPages >= 3) {
+                        console.log(`Arrêt après 3 pages vides consécutives`);
+                        hasMore = false;
+                        break;
+                    }
+
+                    page++;
+                    continue;
                 }
 
+                consecutiveEmptyPages = 0; // Reset si on trouve des photos
                 totalTested += result.photos.length;
 
-                // Filtrage strict par date
+                // Filtrage strict par date avec debug amélioré
                 const periodPhotos = result.photos.filter(photo => {
                     try {
-                        const photoDate = new Date(photo.fileCreatedAt || photo.localDateTime);
+                        // Essayer différents champs de date
+                        const dateFields = [
+                            photo.fileCreatedAt,
+                            photo.localDateTime,
+                            photo.createdAt,
+                            photo.dateTimeOriginal
+                        ];
 
-                        if (isNaN(photoDate.getTime())) {
+                        let photoDate = null;
+                        for (const dateField of dateFields) {
+                            if (dateField) {
+                                photoDate = new Date(dateField);
+                                if (!isNaN(photoDate.getTime())) {
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (!photoDate || isNaN(photoDate.getTime())) {
+                            console.warn(`Date invalide pour photo ${photo.id}:`, {
+                                fileCreatedAt: photo.fileCreatedAt,
+                                localDateTime: photo.localDateTime,
+                                createdAt: photo.createdAt
+                            });
                             return false;
                         }
 
                         const photoYear = photoDate.getFullYear();
                         const photoMonth = photoDate.getMonth() + 1; // 1-12
 
-                        // Debug pour mai 2021
-                        if (targetYear === 2021 && targetMonth === 5 && photoYear === 2021 && photoMonth === 5) {
-                            console.log(`✅ Photo mai 2021 trouvée: ${photo.originalFileName} - ${photo.fileCreatedAt}`);
+                        // Debug spécifique pour mai 2021
+                        if (targetYear === 2021 && targetMonth === 5) {
+                            if (photoYear === 2021 && photoMonth === 5) {
+                                console.log(`✅ Photo mai 2021 trouvée: ${photo.originalFileName || photo.id} - ${photoDate.toISOString()}`);
+                            }
                         }
 
                         // Comparaison exacte
@@ -321,8 +363,15 @@ class ImmichAPI {
 
                 // Ajouter les photos trouvées
                 if (periodPhotos.length > 0) {
-                    allPhotos = allPhotos.concat(periodPhotos);
-                    console.log(`✅ Page ${page}: ${periodPhotos.length} photos de ${periodName} (Total: ${allPhotos.length})`);
+                    // Éviter les doublons
+                    const newPhotos = periodPhotos.filter(photo =>
+                        !allPhotos.some(existing => existing.id === photo.id)
+                    );
+
+                    allPhotos = allPhotos.concat(newPhotos);
+                    console.log(`✅ Page ${page}: ${newPhotos.length} nouvelles photos de ${periodName} (Total: ${allPhotos.length})`);
+                } else {
+                    console.log(`⚪ Page ${page}: 0 photos pour ${periodName} sur ${result.photos.length} photos testées`);
                 }
 
                 // Callback de progression
@@ -340,19 +389,34 @@ class ImmichAPI {
                 page++;
                 hasMore = result.hasMore;
 
-                // Petite pause
-                await this.delay(50);
+                // Petite pause pour éviter la surcharge
+                await this.delay(100);
 
             } catch (error) {
                 console.error(`Erreur page ${page}:`, error);
-                hasMore = false;
+
+                // Si c'est une erreur d'authentification (401), on s'arrête
+                if (error.message.includes('401')) {
+                    throw new Error('Token d\'authentification invalide ou expiré');
+                }
+
+                // Pour les autres erreurs, on continue mais on limite les tentatives
+                consecutiveEmptyPages++;
+                if (consecutiveEmptyPages >= 3) {
+                    hasMore = false;
+                }
+                page++;
             }
         }
 
         // Trier par date (plus récentes en premier)
-        allPhotos.sort((a, b) => new Date(b.fileCreatedAt) - new Date(a.fileCreatedAt));
+        allPhotos.sort((a, b) => {
+            const dateA = new Date(a.fileCreatedAt || a.localDateTime);
+            const dateB = new Date(b.fileCreatedAt || b.localDateTime);
+            return dateB - dateA;
+        });
 
-        console.log(`✅ FINAL: ${allPhotos.length} photos chargées pour ${periodName} (${totalTested} photos testées)`);
+        console.log(`✅ FINAL: ${allPhotos.length} photos chargées pour ${periodName} (${totalTested} photos testées sur ${page - 1} pages)`);
 
         return allPhotos;
     }
