@@ -19,14 +19,14 @@ class ImmichGPSApp {
     /**
      * Initialise l'application
      */
-    async init() {
+    async Xinit() {
         console.log('🚀 Initialisation de l\'application Immich GPS Manager');
-        
+
         try {
             // Vérifier la connectivité API
             ui.showMessage('Vérification de la connexion à Immich...', 'info');
             const isConnected = await immichAPI.testConnection();
-            
+
             if (!isConnected) {
                 ui.showMessage('Impossible de se connecter à l\'API Immich', 'error');
                 return;
@@ -34,21 +34,58 @@ class ImmichGPSApp {
 
             // Initialiser les gestionnaires d'événements
             this.initEventListeners();
-            
+
             // Initialiser l'interface
             this.initUI();
-            
+
             this.isInitialized = true;
             ui.showMessage('✅ Application initialisée avec succès', 'success');
-            
+
             console.log('✅ Application prête');
-            
+
         } catch (error) {
             console.error('❌ Erreur d\'initialisation:', error);
             ui.showMessage(`Erreur d'initialisation: ${error.message}`, 'error');
         }
     }
 
+    async init() {
+        console.log('🚀 Initialisation de l\'application Immich GPS Manager');
+
+        try {
+            // Vérifier la connectivité API avec authentification
+            ui.showMessage('Vérification de la connexion à Immich...', 'info');
+
+            // Charger le token depuis localStorage
+            immichAPI.loadApiKey();
+
+            const isConnected = await immichAPI.testConnection();
+
+            if (!isConnected) {
+                ui.showMessage('Impossible de se connecter à l\'API Immich', 'error');
+                return;
+            }
+
+            // Initialiser les gestionnaires d'événements
+            this.initEventListeners();
+
+            // Initialiser l'interface
+            this.initUI();
+
+            this.isInitialized = true;
+            ui.showMessage('✅ Application initialisée avec succès', 'success');
+
+            console.log('✅ Application prête');
+
+        } catch (error) {
+            console.error('❌ Erreur d\'initialisation:', error);
+            if (error.message.includes('Authentification')) {
+                ui.showMessage('Authentification requise. Veuillez fournir votre token d\'API Immich.', 'warning');
+            } else {
+                ui.showMessage(`Erreur d'initialisation: ${error.message}`, 'error');
+            }
+        }
+    }
     /**
      * Initialise les gestionnaires d'événements
      */
@@ -82,6 +119,13 @@ class ImmichGPSApp {
         document.getElementById('pasteModeBtn').addEventListener('click', () => {
             gpsManager.togglePasteMode();
         });
+
+        document.getElementById('changeTokenBtn')?.addEventListener('click', () => {
+            localStorage.removeItem('immich_api_key');
+            immichAPI.setApiKey(null);
+            ui.showMessage('Token supprimé. Rechargez la page pour vous reconnecter.', 'info');
+        });
+
 
         // Filtres
         document.querySelectorAll('.btn-filter').forEach(btn => {
@@ -118,13 +162,13 @@ class ImmichGPSApp {
             const photoCard = e.target.closest('.photo-card');
             if (photoCard && !e.target.classList.contains('gps-info')) {
                 // Créer un événement personnalisé pour la carte
-                const customEvent = { 
-                    currentTarget: photoCard, 
+                const customEvent = {
+                    currentTarget: photoCard,
                     target: e.target,
                     preventDefault: e.preventDefault.bind(e),
                     stopPropagation: e.stopPropagation.bind(e)
                 };
-                
+
                 const photoId = photoCard.dataset.photoId;
                 if (photoId) {
                     gpsManager.handlePhotoClick(photoId);
@@ -177,7 +221,7 @@ class ImmichGPSApp {
             ui.showMessage('Chargement des périodes disponibles...', 'info');
 
             this.timeBuckets = await immichAPI.getTimeBuckets();
-            
+
             if (this.timeBuckets.length === 0) {
                 ui.showMessage('Aucune période trouvée', 'warning');
                 return;
@@ -185,7 +229,7 @@ class ImmichGPSApp {
 
             // Mettre à jour les sélecteurs
             ui.updateDateSelectors(this.timeBuckets);
-            
+
             ui.showMessage(`${this.timeBuckets.length} périodes chargées`, 'success');
 
         } catch (error) {
@@ -208,10 +252,10 @@ class ImmichGPSApp {
         }
 
         this.currentPeriod = { year };
-        
+
         // Mettre à jour le sélecteur de mois
         ui.updateMonthSelector(this.timeBuckets, year);
-        
+
         console.log('Année sélectionnée:', year);
     }
 
@@ -230,7 +274,7 @@ class ImmichGPSApp {
         }
 
         ui.toggleButton('loadPhotosBtn', true);
-        
+
         console.log('Période sélectionnée:', this.currentPeriod);
     }
 
@@ -245,7 +289,7 @@ class ImmichGPSApp {
 
         try {
             ui.toggleButton('loadPhotosBtn', false, '🔄 Chargement...');
-            
+
             // Effacer les photos précédentes
             photosManager.clearPhotos();
             gpsManager.resetModes();
@@ -255,7 +299,7 @@ class ImmichGPSApp {
 
             // Activer les contrôles
             ui.toggleButton('analyzeGpsBtn', true);
-            
+
             console.log('Photos chargées pour:', this.currentPeriod);
 
         } catch (error) {
@@ -282,29 +326,29 @@ class ImmichGPSApp {
                 gpsManager.toggleCopyMode();
                 e.preventDefault();
                 break;
-                
+
             case 'v':
                 if (e.ctrlKey || e.metaKey) return; // Ctrl+V natif
                 gpsManager.togglePasteMode();
                 e.preventDefault();
                 break;
-                
+
             case 'escape':
                 gpsManager.resetModes();
                 e.preventDefault();
                 break;
-                
+
             case 'a':
                 if (e.ctrlKey || e.metaKey) return; // Ctrl+A natif
                 photosManager.analyzeAllGPS();
                 e.preventDefault();
                 break;
-                
+
             case 'arrowleft':
                 photosManager.previousPage();
                 e.preventDefault();
                 break;
-                
+
             case 'arrowright':
                 photosManager.nextPage();
                 e.preventDefault();
@@ -341,7 +385,7 @@ class ImmichGPSApp {
             if (!savedState) return;
 
             const state = JSON.parse(savedState);
-            
+
             // Vérifier que l'état n'est pas trop ancien (24h)
             const ageHours = (Date.now() - state.timestamp) / (1000 * 60 * 60);
             if (ageHours > 24) {
@@ -383,7 +427,7 @@ class ImmichGPSApp {
         };
 
         const json = JSON.stringify(report, null, 2);
-        
+
         const blob = new Blob([json], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -395,7 +439,7 @@ class ImmichGPSApp {
         URL.revokeObjectURL(url);
 
         ui.showMessage('Rapport d\'état exporté', 'success');
-        
+
         return report;
     }
 
@@ -406,21 +450,21 @@ class ImmichGPSApp {
         // Effacer les données
         this.timeBuckets = [];
         this.currentPeriod = null;
-        
+
         // Réinitialiser les modules
         photosManager.clearPhotos();
         gpsManager.resetModes();
         gpsManager.clearClipboard();
-        
+
         // Réinitialiser l'interface
         this.initUI();
-        
+
         // Effacer le localStorage
         localStorage.removeItem('immich_gps_app_state');
         localStorage.removeItem('gps_actions');
-        
+
         ui.showMessage('Application réinitialisée', 'info');
-        
+
         console.log('🔄 Application réinitialisée');
     }
 

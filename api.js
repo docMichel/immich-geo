@@ -10,12 +10,176 @@
  */
 
 class ImmichAPI {
-constructor() {
+    constructor() {
         this.baseURL = '/immich-api/api';
         this.requestDelay = 100;
         this.apiKey = null; // Nouveau : stockage du token
         this.authPrompt = null; // Promesse pour éviter les multiples prompts
     }
+    /**
+         * Configure le token d'API
+         * @param {string} apiKey - Token d'API Immich
+         */
+    setApiKey(apiKey) {
+        this.apiKey = apiKey;
+        // Sauvegarder dans localStorage pour persistance
+        if (apiKey) {
+            localStorage.setItem('immich_api_key', apiKey);
+        } else {
+            localStorage.removeItem('immich_api_key');
+        }
+        console.log('Token API configuré');
+    }
+
+    /**
+     * Récupère le token depuis localStorage
+     */
+    loadApiKey() {
+        const savedKey = localStorage.getItem('immich_api_key');
+        if (savedKey) {
+            this.apiKey = savedKey;
+            console.log('Token API chargé depuis le cache');
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Demande le token à l'utilisateur
+     * @returns {Promise<boolean>} - True si token fourni
+     */
+    async promptForApiKey() {
+        // Éviter les multiples prompts simultanés
+        if (this.authPrompt) {
+            return await this.authPrompt;
+        }
+
+        this.authPrompt = new Promise((resolve) => {
+            const modal = this.createAuthModal(resolve);
+            document.body.appendChild(modal);
+        });
+
+        const result = await this.authPrompt;
+        this.authPrompt = null;
+        return result;
+    }
+
+
+    /**
+     * Crée la modal d'authentification
+     * @param {Function} resolve - Callback de résolution
+     * @returns {HTMLElement} - Élément modal
+     */
+    createAuthModal(resolve) {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 600px;">
+                <h3>🔐 Authentification Immich</h3>
+                <p>Veuillez entrer votre token d'API Immich pour accéder aux photos.</p>
+                <div style="margin: 20px 0;">
+                    <label for="apiKeyInput" style="display: block; margin-bottom: 10px; font-weight: bold;">
+                        Token d'API :
+                    </label>
+                    <input type="password" 
+                           id="apiKeyInput" 
+                           placeholder="Votre token d'API Immich..."
+                           style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-family: monospace;">
+                </div>
+                <div style="margin: 15px 0; padding: 15px; background: #f0f8ff; border-radius: 8px; font-size: 0.9rem;">
+                    <strong>💡 Comment obtenir votre token :</strong><br>
+                    1. Connectez-vous à votre instance Immich<br>
+                    2. Allez dans <strong>Paramètres → Clés d'API</strong><br>
+                    3. Cliquez sur <strong>"Nouvelle clé d'API"</strong><br>
+                    4. Donnez un nom (ex: "GPS Manager") et copiez le token généré
+                </div>
+                <div class="modal-buttons">
+                    <button id="confirmAuthBtn" class="btn btn-success">✅ Confirmer</button>
+                    <button id="cancelAuthBtn" class="btn btn-secondary">❌ Annuler</button>
+                </div>
+            </div>
+        `;
+
+        const input = modal.querySelector('#apiKeyInput');
+        const confirmBtn = modal.querySelector('#confirmAuthBtn');
+        const cancelBtn = modal.querySelector('#cancelAuthBtn');
+
+        const cleanup = () => {
+            if (modal.parentNode) {
+                modal.parentNode.removeChild(modal);
+            }
+        };
+
+        confirmBtn.onclick = () => {
+            const token = input.value.trim();
+            if (token) {
+                this.setApiKey(token);
+                cleanup();
+                resolve(true);
+            } else {
+                input.style.borderColor = '#dc3545';
+                input.focus();
+            }
+        };
+
+        cancelBtn.onclick = () => {
+            cleanup();
+            resolve(false);
+        };
+
+        // Valider avec Entrée
+        input.onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                confirmBtn.click();
+            }
+        };
+
+        // Focus automatique
+        setTimeout(() => input.focus(), 100);
+
+        return modal;
+    }
+
+    /**
+     * Vérifie si le token est valide
+     * @returns {Promise<boolean>} - True si valide
+     */
+    async validateApiKey() {
+        if (!this.apiKey) return false;
+
+        try {
+            await this.makeRequest('/server/info');
+            return true;
+        } catch (error) {
+            if (error.message.includes('401') || error.message.includes('403')) {
+                console.warn('Token API invalide');
+                this.setApiKey(null); // Supprimer le token invalide
+                return false;
+            }
+            throw error; // Autres erreurs
+        }
+    }
+
+    /**
+     * S'assure qu'on a un token valide avant les requêtes
+     * @returns {Promise<boolean>} - True si authentifié
+     */
+    async ensureAuthenticated() {
+        // Charger depuis localStorage si pas encore fait
+        if (!this.apiKey) {
+            this.loadApiKey();
+        }
+
+        // Vérifier la validité
+        if (this.apiKey && await this.validateApiKey()) {
+            return true;
+        }
+
+        // Demander un nouveau token
+        return await this.promptForApiKey();
+    }
+
 
     /**
      * Méthode générique pour les appels API
@@ -23,7 +187,7 @@ constructor() {
      * @param {object} options - Options de la requête fetch
      * @returns {Promise<object>} - Réponse de l'API
      */
-    async makeRequest(endpoint, options = {}) {
+    async XmakeRequest(endpoint, options = {}) {
         try {
             const url = `${this.baseURL}${endpoint}`;
             const response = await fetch(url, {
@@ -32,9 +196,53 @@ constructor() {
                     ...options.headers
                 },
                 ...options
-            });Desktop/lacie/VRAC/100D3100/
+            });
 
             if (!response.ok) {
+                throw new Error(`API Error ${response.status}: ${response.statusText}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error(`Erreur API ${endpoint}:`, error);
+            throw error;
+        }
+    }
+    /**
+         * Méthode générique pour les appels API (MODIFIÉE)
+         */
+    async makeRequest(endpoint, options = {}) {
+        // S'assurer qu'on est authentifié
+        if (!endpoint.includes('/server/info')) { // Éviter la récursion pour la validation
+            const isAuth = await this.ensureAuthenticated();
+            if (!isAuth) {
+                throw new Error('Authentification requise');
+            }
+        }
+
+        try {
+            const url = `${this.baseURL}${endpoint}`;
+            const headers = {
+                'Content-Type': 'application/json',
+                ...options.headers
+            };
+
+            // Ajouter le token d'authentification
+            if (this.apiKey) {
+                headers['X-API-Key'] = this.apiKey;
+            }
+
+            const response = await fetch(url, {
+                headers,
+                ...options
+            });
+
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    // Token invalide, le supprimer et redemander
+                    this.setApiKey(null);
+                    throw new Error(`Authentification échouée (${response.status}): Token d'API invalide`);
+                }
                 throw new Error(`API Error ${response.status}: ${response.statusText}`);
             }
 
