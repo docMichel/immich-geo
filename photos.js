@@ -62,11 +62,58 @@ class PhotosManager {
             ui.showMessage(`Chargement des photos pour ${period.year}${period.month ? '-' + period.month : ''}...`, 'info');
             ui.updateProgress(0, 'Initialisation...', true);
 
+            // Callback de progression CORRIGÉ
+            const onLoadProgress = (progress) => {
+                const percent = Math.min(80, (progress.page / 15) * 80); // 80% max pour le chargement
+
+                // FIX: Message plus informatif
+                let message = `Page ${progress.page}: `;
+                if (progress.photosThisPage > 0) {
+                    message += `${progress.photosThisPage} photos trouvées pour ${progress.period}`;
+                } else {
+                    message += `${progress.allPhotosThisPage || 0} photos sur cette page, 0 pour ${progress.period}`;
+                }
+                message += ` (Total: ${progress.totalFound})`;
+
+                ui.updateProgress(percent, message);
+            };
+
+            // Charger via l'API
+            const loadedPhotos = await immichAPI.loadPhotosForPeriod(period, onLoadProgress);
+
+            // Reste du code inchangé...
+            this.photos = loadedPhotos.map(photo => this.createPhotoObject(photo));
+            this.currentPeriod = period;
+            this.currentPage = 1;
+
+            this.updateDisplay();
+            this.updateStats();
+
+            ui.updateProgress(100, `${this.photos.length} photos chargées`, true);
+            setTimeout(() => ui.updateProgress(0, '', false), 2000);
+
+            ui.showMessage(`✅ ${this.photos.length} photos chargées pour ${this.formatPeriod(period)}`, 'success');
+
+            return this.photos;
+
+        } catch (error) {
+            console.error('Erreur chargement photos:', error);
+            ui.showMessage(`Erreur lors du chargement: ${error.message}`, 'error');
+            ui.updateProgress(0, '', false);
+            throw error;
+        }
+    }
+
+    async XloadPhotosForPeriod(period) {
+        try {
+            ui.showMessage(`Chargement des photos pour ${period.year}${period.month ? '-' + period.month : ''}...`, 'info');
+            ui.updateProgress(0, 'Initialisation...', true);
+
             // Callback de progression du chargement
             const onLoadProgress = (progress) => {
                 const percent = Math.min(50, (progress.page / 10) * 50); // 50% max pour le chargement
                 ui.updateProgress(
-                    percent, 
+                    percent,
                     `Page ${progress.page}: ${progress.photosThisPage} photos trouvées (Total: ${progress.totalFound})`
                 );
             };
@@ -127,7 +174,7 @@ class PhotosManager {
         }
 
         const photosToAnalyze = this.photos.filter(photo => !photo.analyzed);
-        
+
         if (photosToAnalyze.length === 0) {
             ui.showMessage('Toutes les photos ont déjà été analysées', 'info');
             return;
@@ -141,7 +188,7 @@ class PhotosManager {
             // Callback de progression
             const onProgress = (progress) => {
                 this.analysisProgress = progress;
-                
+
                 const percent = (progress.analyzed / progress.total) * 100;
                 ui.updateProgress(
                     percent,
@@ -199,7 +246,7 @@ class PhotosManager {
     setPage(page) {
         const filteredPhotos = this.getFilteredPhotos();
         const maxPage = Math.ceil(filteredPhotos.length / this.photosPerPage);
-        
+
         this.currentPage = Math.max(1, Math.min(page, maxPage));
         this.updateDisplay();
     }
@@ -273,10 +320,10 @@ class PhotosManager {
             photo.hasGPS = true;
             photo.gpsData = { ...gpsData };
             photo.analyzed = true;
-            
+
             this.updateStats();
             this.updateDisplay();
-            
+
             console.log(`GPS mis à jour pour ${photo.filename}:`, gpsData);
         }
     }
@@ -289,10 +336,10 @@ class PhotosManager {
         this.currentPage = 1;
         this.currentPeriod = null;
         this.analysisProgress = { analyzed: 0, total: 0, foundGPS: 0 };
-        
+
         this.updateStats();
         this.updateDisplay();
-        
+
         ui.toggleSection('photosSection', false);
         ui.toggleSection('photoControls', false);
         ui.toggleSection('statsSection', false);
@@ -305,7 +352,7 @@ class PhotosManager {
      */
     exportToCSV() {
         const photosWithGPS = this.getPhotosWithGPS();
-        
+
         if (photosWithGPS.length === 0) {
             ui.showMessage('Aucune photo avec GPS à exporter', 'warning');
             return null;
@@ -326,10 +373,10 @@ class PhotosManager {
         });
 
         const csv = [headers.join(','), ...rows].join('\n');
-        
+
         this.downloadFile(csv, this.generateFilename('csv'), 'text/csv');
         ui.showMessage(`${photosWithGPS.length} photos exportées en CSV`, 'success');
-        
+
         return csv;
     }
 
@@ -339,7 +386,7 @@ class PhotosManager {
      */
     exportToJSON() {
         const photosWithGPS = this.getPhotosWithGPS();
-        
+
         if (photosWithGPS.length === 0) {
             ui.showMessage('Aucune photo avec GPS à exporter', 'warning');
             return null;
@@ -361,10 +408,10 @@ class PhotosManager {
         };
 
         const json = JSON.stringify(data, null, 2);
-        
+
         this.downloadFile(json, this.generateFilename('json'), 'application/json');
         ui.showMessage(`${photosWithGPS.length} photos exportées en JSON`, 'success');
-        
+
         return data;
     }
 
@@ -374,14 +421,14 @@ class PhotosManager {
      */
     exportToKML() {
         const photosWithGPS = this.getPhotosWithGPS();
-        
+
         if (photosWithGPS.length === 0) {
             ui.showMessage('Aucune photo avec GPS à exporter', 'warning');
             return null;
         }
 
         const periodName = this.formatPeriod(this.currentPeriod);
-        
+
         const kml = `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
@@ -395,10 +442,10 @@ class PhotosManager {
       </IconStyle>
     </Style>
     ${photosWithGPS.map(photo => {
-      const gps = photo.gpsData;
-      const date = new Date(photo.fileCreatedAt).toLocaleDateString('fr-FR');
-      
-      return `
+            const gps = photo.gpsData;
+            const date = new Date(photo.fileCreatedAt).toLocaleDateString('fr-FR');
+
+            return `
     <Placemark>
       <name>${photo.filename}</name>
       <description><![CDATA[
@@ -412,13 +459,13 @@ class PhotosManager {
         <coordinates>${gps.longitude},${gps.latitude},${gps.altitude || 0}</coordinates>
       </Point>
     </Placemark>`;
-    }).join('')}
+        }).join('')}
   </Document>
 </kml>`;
 
         this.downloadFile(kml, this.generateFilename('kml'), 'application/vnd.google-earth.kml+xml');
         ui.showMessage(`${photosWithGPS.length} photos exportées en KML`, 'success');
-        
+
         return kml;
     }
 
@@ -430,7 +477,7 @@ class PhotosManager {
     generateFilename(extension) {
         const period = this.formatPeriod(this.currentPeriod);
         const date = new Date().toISOString().split('T')[0];
-        
+
         return `photos_gps_${period}_${date}.${extension}`;
     }
 
@@ -453,16 +500,16 @@ class PhotosManager {
     downloadFile(content, filename, mimeType) {
         const blob = new Blob([content], { type: mimeType });
         const url = URL.createObjectURL(blob);
-        
+
         const a = document.createElement('a');
         a.href = url;
         a.download = filename;
         a.style.display = 'none';
-        
+
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        
+
         URL.revokeObjectURL(url);
     }
 
@@ -474,7 +521,7 @@ class PhotosManager {
         const analyzed = this.photos.filter(p => p.analyzed);
         const withGPS = this.getPhotosWithGPS();
         const withoutGPS = this.getPhotosWithoutGPS();
-        
+
         return {
             total: this.photos.length,
             analyzed: analyzed.length,
@@ -495,9 +542,9 @@ class PhotosManager {
      */
     searchPhotos(searchTerm) {
         if (!searchTerm.trim()) return this.photos;
-        
+
         const term = searchTerm.toLowerCase();
-        return this.photos.filter(photo => 
+        return this.photos.filter(photo =>
             photo.filename.toLowerCase().includes(term)
         );
     }
@@ -522,7 +569,7 @@ class PhotosManager {
 const photosManager = new PhotosManager();
 
 // Fonctions globales pour l'interface
-window.copyGPSCoordinates = function(latitude, longitude) {
+window.copyGPSCoordinates = function (latitude, longitude) {
     const coords = `${latitude}, ${longitude}`;
     navigator.clipboard.writeText(coords).then(() => {
         ui.showMessage('Coordonnées copiées dans le presse-papier', 'success');
