@@ -203,9 +203,14 @@ class App {
 // Instance globale unique
 const app = new App();
 
-// Initialisation au chargement de la page
-document.addEventListener('DOMContentLoaded', () => {
+// APRÈS
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        app.init();
+    });
+} else {
+    // DOM déjà prêt
     app.init();
-});
+}
 
 console.log('📱 Application chargée');
