@@ -14,12 +14,12 @@ class App {
      */
     async init() {
         console.log('🚀 Initialisation de l\'application');
-        
+
         try {
             // Test de connexion
             ui.showMessage('Test de connexion à Immich...', 'info');
             const isConnected = await api.testConnection();
-            
+
             if (!isConnected) {
                 ui.showMessage('Connexion à Immich échouée', 'error');
                 return;
@@ -27,9 +27,9 @@ class App {
 
             // Initialiser les événements
             this.initEvents();
-            
+
             ui.showMessage('✅ Application initialisée', 'success');
-            
+
         } catch (error) {
             console.error('Erreur d\'initialisation:', error);
             ui.showMessage(`Erreur: ${error.message}`, 'error');
@@ -62,7 +62,36 @@ class App {
 
         console.log('✅ Événements initialisés');
     }
+    /**
+     * Affiche les photos dans la grille
+     */
+    displayPhotos() {
+        const grid = document.getElementById('photosGrid');
+        if (!grid) {
+            console.error('Élément photosGrid introuvable');
+            return;
+        }
 
+        if (this.photos.length === 0) {
+            grid.innerHTML = '<p>Aucune photo trouvée pour cette période.</p>';
+            return;
+        }
+
+        grid.innerHTML = this.photos.map(photo => {
+            const date = new Date(photo.fileCreatedAt || photo.localDateTime).toLocaleDateString('fr-FR');
+            return `
+            <div class="photo-card">
+                <div class="photo-header">
+                    <div class="photo-name">${photo.originalFileName || 'Sans nom'}</div>
+                    <div class="photo-date">📅 ${date}</div>
+                </div>
+            </div>
+        `;
+        }).join('');
+
+        // Afficher la section photos
+        ui.toggleSection('photosSection', true);
+    }
     /**
      * Charge les périodes disponibles
      */
@@ -72,7 +101,7 @@ class App {
             ui.showMessage('Chargement des périodes...', 'info');
 
             this.timeBuckets = await api.getTimeBuckets();
-            
+
             ui.updateDateSelectors(this.timeBuckets);
             ui.showMessage(`${this.timeBuckets.length} périodes chargées`, 'success');
 
@@ -96,7 +125,7 @@ class App {
 
         this.currentPeriod = { year };
         ui.updateMonthSelector(this.timeBuckets, year);
-        
+
         console.log('Année sélectionnée:', year);
     }
 
@@ -138,7 +167,7 @@ class App {
                 ui.updateProgress((page - 1) * 10, `Page ${page}...`, true);
 
                 const result = await api.searchPhotos({ page, size: 1000 });
-                
+
                 if (result.photos.length === 0) {
                     hasMore = false;
                     break;
@@ -153,7 +182,7 @@ class App {
             }
 
             ui.updateProgress(0, '', false);
-            
+
             // Afficher les statistiques
             ui.updateStats({
                 total: this.photos.length,
@@ -163,7 +192,8 @@ class App {
 
             ui.toggleSection('statsSection', true);
             ui.showMessage(`${this.photos.length} photos chargées`, 'success');
-
+            // Afficher les photos
+            this.displayPhotos();
         } catch (error) {
             console.error('Erreur chargement photos:', error);
             ui.showMessage(`Erreur: ${error.message}`, 'error');
