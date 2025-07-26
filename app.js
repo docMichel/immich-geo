@@ -89,8 +89,10 @@ class App {
             return `
             <div class="photo-card" data-photo-id="${photo.id}">
                 <img src="${photo.thumbnailUrl}" alt="${photo.originalFileName}" 
-                     loading="lazy" style="width: 100%; height: 200px; object-fit: cover;" />
-                <div class="photo-header">
+                    loading="lazy" 
+                    onerror="this.onerror=null; setTimeout(() => this.src=this.src+'?retry='+Date.now(), 1000)"
+                    style="width: 100%; height: 200px; object-fit: cover;" />
+                                <div class="photo-header">
                     <div class="photo-name">${photo.originalFileName || 'Sans nom'}</div>
                     <div class="photo-date">📅 ${date}</div>
                     <div class="photo-location">📍 ${location}</div>
