@@ -228,7 +228,7 @@ class ImmichGPSApp {
             }
 
             // Mettre à jour les sélecteurs
-            ui.updateDateSelectors(this.timeBuckets);
+            ui.updateDateSwindow.app = app; // <-- AJOUTER CETTE LIGNEelectors(this.timeBuckets);
 
             ui.showMessage(`${this.timeBuckets.length} périodes chargées`, 'success');
 
@@ -269,7 +269,7 @@ class ImmichGPSApp {
         if (month) {
             this.currentPeriod.month = month;
         } else {
-            // "Toute l'année" sélectionnée
+            // "Toute l'anwindow.app = app; // <-- AJOUTER CETTE LIGNEnée" sélectionnée
             delete this.currentPeriod.month;
         }
 
@@ -495,6 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Export pour usage global
 window.immichGPSApp = app;
+window.app = app;
 
 // Fonctions utilitaires globales pour le debug
 window.debugApp = {

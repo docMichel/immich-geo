@@ -149,7 +149,8 @@ class ImmichAPI {
         if (!this.apiKey) return false;
 
         try {
-            await this.makeRequest('/server/info');
+            // await this.makeRequest('/server/info');
+            await this.makeRequest('/timeline/buckets');
             return true;
         } catch (error) {
             if (error.message.includes('401') || error.message.includes('403')) {
