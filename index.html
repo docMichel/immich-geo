@@ -3,64 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>📍 Gestionnaire GPS Photos Immich SANS CACHE</title>
-
-    <!-- ANTI-CACHE : Empêcher la mise en cache -->
+    <title>📍 Gestionnaire GPS Photos Immich</title>
+    
+    <!-- Anti-cache pour développement -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-
-    <!-- CSS avec timestamp anti-cache -->
-    <link rel="stylesheet" href="styles.css?v=" id="css-link">
+    
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
-        <!-- En-tête avec boutons de développement -->
+        <!-- En-tête -->
         <header class="header">
             <h1>📍 Gestionnaire GPS Photos Immich</h1>
             <p>Gestion par mois - Copie/Colle GPS entre photos</p>
-
+            
             <!-- Boutons de développement -->
             <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <button id="changeTokenBtn" class="btn"
-                    style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">
-                    🔑 Changer le token d'API
+                <button id="changeTokenBtn" class="btn" style="background: rgba(255,255,255,0.2); color: white;">
+                    🔑 Changer le token
                 </button>
-                <button id="clearCacheBtn" class="btn"
-                    style="background: rgba(255,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.3);">
-                    🗑️ Vider le cache
-                </button>
-                <button id="reloadAppBtn" class="btn"
-                    style="background: rgba(0,255,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.3);">
-                    🔄 Recharger l'app
-                </button>
-                <button id="debugInfoBtn" class="btn"
-                    style="background: rgba(0,0,255,0.3); color: white; border: 1px solid rgba(255,255,255,0.3);">
-                    🐛 Info Debug
+                <button id="reloadBtn" class="btn" style="background: rgba(0,255,0,0.3); color: white;">
+                    🔄 Recharger
                 </button>
             </div>
         </header>
 
-        <!-- Section de navigation par dates -->
+        <!-- Navigation par dates -->
         <section class="date-navigation">
             <h2>📅 Navigation par dates</h2>
-
+            
             <div class="date-controls">
                 <button id="loadPeriodsBtn" class="btn btn-primary">
                     🔄 Charger les périodes disponibles
                 </button>
-
+                
                 <div class="selectors" id="dateSelectors" style="display: none;">
                     <select id="yearSelect" disabled>
                         <option value="">Sélectionner une année...</option>
                     </select>
-
+                    
                     <select id="monthSelect" disabled>
                         <option value="">Sélectionner un mois...</option>
                     </select>
-
+                    
                     <button id="loadPhotosBtn" class="btn btn-success" disabled>
-                        📥 Charger les photos de ce mois
+                        📥 Charger les photos
                     </button>
                 </div>
             </div>
@@ -68,7 +57,7 @@
             <div id="periodInfo" class="info-box" style="display: none;"></div>
         </section>
 
-        <!-- Indicateur de progression -->
+        <!-- Progression -->
         <div class="progress-container" id="progressContainer" style="display: none;">
             <div class="progress-bar">
                 <div class="progress-fill" id="progressFill"></div>
@@ -80,7 +69,7 @@
         <section class="stats" id="statsSection" style="display: none;">
             <div class="stat-card">
                 <div class="stat-number" id="totalPhotos">0</div>
-                <div class="stat-label">Photos chargées</div>
+                <div class="stat-label">Photos</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number" id="analyzedPhotos">0</div>
@@ -95,95 +84,18 @@
                 <div class="stat-label">Sans GPS</div>
             </div>
         </section>
-
-        <!-- Contrôles des photos -->
-        <section class="photo-controls" id="photoControls" style="display: none;">
-            <h2>🖼️ Gestion des photos</h2>
-
-            <div class="controls-row">
-                <div class="filter-buttons">
-                    <button class="btn btn-filter active" data-filter="all">Toutes</button>
-                    <button class="btn btn-filter" data-filter="gps">Avec GPS</button>
-                    <button class="btn btn-filter" data-filter="no-gps">Sans GPS</button>
-                </div>
-
-                <div class="action-buttons">
-                    <button id="analyzeGpsBtn" class="btn btn-warning">
-                        🔍 Analyser GPS détaillé
-                    </button>
-                    <button id="copyModeBtn" class="btn btn-mode">
-                        📋 Mode Copie GPS
-                    </button>
-                    <button id="pasteModeBtn" class="btn btn-mode" disabled>
-                        📍 Mode Collage GPS
-                    </button>
-                </div>
-            </div>
-
-            <!-- Info GPS copié -->
-            <div class="clipboard-info" id="clipboardInfo" style="display: none;">
-                <div class="clipboard-content">
-                    <span class="clipboard-icon">📋</span>
-                    <div class="clipboard-details">
-                        <div>GPS copié depuis : <strong id="clipboardSource"></strong></div>
-                        <div>Coordonnées : <code id="clipboardCoords"></code></div>
-                        <div class="clipboard-hint">Cliquez sur une photo sans GPS pour coller</div>
-                    </div>
-                    <button class="btn-clear" onclick="clearClipboard()">✕</button>
-                </div>
-            </div>
-        </section>
-
-        <!-- Grille des photos -->
-        <section class="photos-section" id="photosSection" style="display: none;">
-            <div class="photos-grid" id="photosGrid"></div>
-
-            <!-- Pagination si beaucoup de photos -->
-            <div class="pagination" id="pagination" style="display: none;">
-                <button id="prevPageBtn" class="btn btn-secondary">‹ Précédent</button>
-                <span id="pageInfo">Page 1 sur 1</span>
-                <button id="nextPageBtn" class="btn btn-secondary">Suivant ›</button>
-            </div>
-        </section>
-
-        <!-- Section d'export -->
-        <section class="export-section" id="exportSection" style="display: none;">
-            <h2>📥 Export des données GPS</h2>
-            <div class="export-buttons">
-                <button id="exportCsvBtn" class="btn btn-export">📊 Export CSV</button>
-                <button id="exportJsonBtn" class="btn btn-export">📋 Export JSON</button>
-                <button id="exportKmlBtn" class="btn btn-export">🗺️ Export KML</button>
-            </div>
-        </section>
     </div>
 
     <!-- Zone de messages -->
     <div id="messageContainer"></div>
 
-    <!-- Modal de confirmation pour le collage GPS -->
-    <div class="modal" id="confirmModal" style="display: none;">
-        <div class="modal-content">
-            <h3>📍 Confirmer le collage GPS</h3>
-            <p>Voulez-vous vraiment coller les coordonnées GPS sur cette photo ?</p>
-            <div class="modal-coords" id="modalCoords"></div>
-            <div class="modal-buttons">
-                <button class="btn btn-success" id="confirmPasteBtn">✅ Confirmer</button>
-                <button class="btn btn-secondary" id="cancelPasteBtn">❌ Annuler</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Scripts avec timestamps anti-cache -->
+    <!-- Scripts -->
     <script>
-        // SYSTÈME ANTI-CACHE POUR DÉVELOPPEMENT
+        // Chargement des scripts avec anti-cache
         (function() {
             const timestamp = Date.now();
-            console.log('🔄 Chargement avec timestamp anti-cache:', timestamp);
-
-            // Mettre à jour le CSS avec timestamp
-            document.getElementById('css-link').href = 'styles.css?v=' + timestamp;
-
-            // Fonction pour charger les scripts avec anti-cache
+            console.log('🔄 Chargement avec timestamp:', timestamp);
+            
             function loadScript(src) {
                 return new Promise((resolve, reject) => {
                     const script = document.createElement('script');
@@ -193,268 +105,44 @@
                     document.head.appendChild(script);
                 });
             }
-
-            // Charger tous les scripts dans l'ordre
+            
             async function loadAllScripts() {
                 try {
-                    console.log('📥 Chargement des scripts...');
                     await loadScript('api.js');
                     console.log('✅ api.js chargé');
-
+                    
                     await loadScript('ui.js');
                     console.log('✅ ui.js chargé');
-
-                    await loadScript('photos.js');
-                    console.log('✅ photos.js chargé');
-
-                    await loadScript('gps.js');
-                    console.log('✅ gps.js chargé');
-
+                    
                     await loadScript('app.js');
                     console.log('✅ app.js chargé');
-
-                    console.log('🎉 Tous les scripts chargés avec succès');
-
-                    // Ajouter les gestionnaires pour les boutons de développement
-                    addDevButtons();
-
+                    
+                    // Boutons de développement
+                    initDevButtons();
+                    
                 } catch (error) {
-                    console.error('❌ Erreur chargement script:', error);
-                    alert('Erreur de chargement des scripts. Vérifiez la console.');
+                    console.error('❌ Erreur chargement:', error);
                 }
             }
-
-            // Ajouter les fonctionnalités des boutons de développement
-            function addDevButtons() {
-                // Bouton changer token
-                document.getElementById('changeTokenBtn').addEventListener('click', async function() {
-                    console.log('🔑 Clic sur bouton token');
-                    console.log('- window.immichAPI existe:', !!window.immichAPI);
-                    console.log('- immichAPI global existe:', typeof immichAPI !== 'undefined');
-                    
-                    // Attendre que l'API soit disponible si nécessaire
-                    let apiInstance = window.immichAPI;
-                    if (!apiInstance && typeof immichAPI !== 'undefined') {
-                        apiInstance = immichAPI;
+            
+            function initDevButtons() {
+                // Changer token
+                document.getElementById('changeTokenBtn').onclick = async function() {
+                    api.setApiKey(null);
+                    const success = await api.promptForApiKey();
+                    if (success) {
+                        alert('Token mis à jour !');
                     }
-                    
-                    // Si toujours pas disponible, attendre un peu
-                    if (!apiInstance) {
-                        console.log('⏳ API non disponible, attente...');
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-                        apiInstance = window.immichAPI || (typeof immichAPI !== 'undefined' ? immichAPI : null);
-                    }
-                    
-                    if (!apiInstance) {
-                        alert('API non initialisée. Attendez quelques secondes et réessayez, ou rechargez la page.');
-                        return;
-                    }
-                    
-                    if (confirm('Voulez-vous supprimer le token actuel et en saisir un nouveau ?')) {
-                        try {
-                            // Supprimer le token actuel
-                            localStorage.removeItem('immich_api_key');
-                            apiInstance.setApiKey(null);
-                            
-                            console.log('🔄 Demande nouveau token...');
-                            
-                            // Forcer une nouvelle demande de token
-                            const success = await apiInstance.promptForApiKey();
-                            
-                            if (success) {
-                                alert('Nouveau token configuré avec succès !');
-                                // Optionnel : recharger l'app
-                                if (confirm('Recharger l\'application pour appliquer le nouveau token ?')) {
-                                    location.reload();
-                                }
-                            } else {
-                                alert('Configuration du token annulée.');
-                            }
-                        } catch (error) {
-                            console.error('❌ Erreur:', error);
-                            alert('Erreur: ' + error.message);
-                        }
-                    }
-                });
-
-                // Bouton vider cache
-                document.getElementById('clearCacheBtn').addEventListener('click', function() {
-                    if (confirm('Vider tout le cache du navigateur pour cette application ?')) {
-                        // Vider localStorage
-                        Object.keys(localStorage).forEach(key => {
-                            if (key.includes('immich') || key.includes('gps')) {
-                                localStorage.removeItem(key);
-                            }
-                        });
-
-                        // Vider sessionStorage
-                        sessionStorage.clear();
-
-                        // Tenter de vider le cache du navigateur
-                        if ('caches' in window) {
-                            caches.keys().then(names => {
-                                names.forEach(name => {
-                                    caches.delete(name);
-                                });
-                            });
-                        }
-
-                        alert('Cache vidé ! La page va se recharger.');
-                        location.reload(true);
-                    }
-                });
-
-                // Bouton recharger app
-                document.getElementById('reloadAppBtn').addEventListener('click', function() {
-                    location.reload(true);
-                });
-
-                // Bouton debug info
-                document.getElementById('debugInfoBtn').addEventListener('click', function() {
-                    const info = {
-                        timestamp: new Date().toISOString(),
-                        userAgent: navigator.userAgent,
-                        localStorage: Object.keys(localStorage).filter(k => k.includes('immich') || k.includes('gps')),
-                        apiKey: localStorage.getItem('immich_api_key') ? 'Présent (caché)' : 'Absent',
-                        appState: window.debugApp ? window.debugApp.getState() : 'App non initialisée',
-                        immichAPI: window.immichAPI ? {
-                            hasKey: !!window.immichAPI.apiKey,
-                            baseURL: window.immichAPI.baseURL
-                        } : 'Non initialisé'
-                    };
-
-                    console.log('🐛 DEBUG INFO:', info);
-                    alert('Informations de debug dans la console (F12)');
-                });
-
-                console.log('🔧 Boutons de développement activés');
+                };
+                
+                // Recharger
+                document.getElementById('reloadBtn').onclick = function() {
+                    location.reload();
+                };
             }
-
-            // Démarrer le chargement
+            
             loadAllScripts();
-
-            // Ajouter des raccourcis clavier pour le développement
-            document.addEventListener('keydown', function(e) {
-                // Ctrl+Shift+R : Rechargement forcé
-                if (e.ctrlKey && e.shiftKey && e.key === 'R') {
-                    e.preventDefault();
-                    location.reload(true);
-                }
-
-                // Ctrl+Shift+C : Vider cache
-                if (e.ctrlKey && e.shiftKey && e.key === 'C') {
-                    e.preventDefault();
-                    document.getElementById('clearCacheBtn').click();
-                }
-
-                // Ctrl+Shift+D : Debug info
-                if (e.ctrlKey && e.shiftKey && e.key === 'D') {
-                    e.preventDefault();
-                    document.getElementById('debugInfoBtn').click();
-                }
-            });
-
         })();
-
-        // Fonctions globales de debug et de secours
-        window.forceTokenChange = async function() {
-            try {
-                console.log('🔑 Forçage du changement de token...');
-                
-                // Chercher l'instance API de toutes les façons possibles
-                let apiInstance = window.immichAPI || (typeof immichAPI !== 'undefined' ? immichAPI : null);
-                
-                if (!apiInstance) {
-                    console.log('⚠️ Aucune instance API trouvée, création d\'une nouvelle...');
-                    
-                    // Vérifier si la classe ImmichAPI existe
-                    if (typeof ImmichAPI !== 'undefined') {
-                        apiInstance = new ImmichAPI();
-                        window.immichAPI = apiInstance;
-                        console.log('✅ Nouvelle instance API créée');
-                    } else {
-                        alert('Classes API non chargées. Rechargez la page et attendez le chargement complet.');
-                        return false;
-                    }
-                }
-                
-                // Supprimer l'ancien token
-                localStorage.removeItem('immich_api_key');
-                apiInstance.setApiKey(null);
-                
-                // Demander le nouveau token
-                const success = await apiInstance.promptForApiKey();
-                
-                if (success) {
-                    console.log('✅ Nouveau token configuré');
-                    
-                    // Tester la connexion
-                    try {
-                        const isConnected = await apiInstance.testConnection();
-                        console.log('🔗 Test connexion:', isConnected);
-                        alert('Token configuré et testé avec succès !');
-                    } catch (error) {
-                        console.log('⚠️ Token configuré mais test de connexion échoué:', error.message);
-                        alert('Token configuré, mais vérifiez votre configuration Immich.');
-                    }
-                    
-                    return true;
-                } else {
-                    console.log('❌ Configuration annulée');
-                    return false;
-                }
-                
-            } catch (error) {
-                console.error('❌ Erreur changement token:', error);
-                alert('Erreur: ' + error.message);
-                return false;
-            }
-        };
-
-        window.debugToken = function() {
-            console.log('🔍 DEBUG TOKEN:');
-            console.log('- localStorage token:', localStorage.getItem('immich_api_key') ? 'Présent' : 'Absent');
-            console.log('- window.immichAPI:', !!window.immichAPI);
-            console.log('- global immichAPI:', typeof immichAPI !== 'undefined');
-            console.log('- ImmichAPI class:', typeof ImmichAPI !== 'undefined');
-            
-            if (window.immichAPI) {
-                console.log('- immichAPI.apiKey:', !!window.immichAPI.apiKey);
-                console.log('- immichAPI.baseURL:', window.immichAPI.baseURL);
-            }
-            
-            // Lister tous les objets globaux contenant 'immich'
-            const globals = Object.keys(window).filter(key => key.toLowerCase().includes('immich'));
-            console.log('- Objets globaux avec "immich":', globals);
-        };
-
-        // Fonction de diagnostic complet
-        window.debugApp = function() {
-            console.log('🔍 DEBUG APPLICATION:');
-            console.log('===================');
-            
-            // Scripts chargés
-            const scripts = Array.from(document.querySelectorAll('script[src]')).map(s => s.src);
-            console.log('Scripts chargés:', scripts);
-            
-            // Classes disponibles
-            const classes = ['ImmichAPI', 'UIManager', 'PhotosManager', 'GPSManager', 'ImmichGPSApp'];
-            classes.forEach(className => {
-                console.log(`- ${className}:`, typeof window[className] !== 'undefined');
-            });
-            
-            // Instances globales
-            const instances = ['immichAPI', 'ui', 'photosManager', 'gpsManager', 'app'];
-            instances.forEach(instanceName => {
-                console.log(`- ${instanceName}:`, typeof window[instanceName] !== 'undefined');
-            });
-            
-            return {
-                scriptsLoaded: scripts.length,
-                classesAvailable: classes.filter(c => typeof window[c] !== 'undefined'),
-                instancesAvailable: instances.filter(i => typeof window[i] !== 'undefined')
-            };
-        };
     </script>
 </body>
 </html>
