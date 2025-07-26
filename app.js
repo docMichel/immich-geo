@@ -65,7 +65,44 @@ class App {
     /**
      * Affiche les photos dans la grille
      */
+    /**
+ * Affiche les photos dans la grille
+ */
     displayPhotos() {
+        const grid = document.getElementById('photosGrid');
+        if (!grid) {
+            console.error('Élément photosGrid introuvable');
+            return;
+        }
+
+        if (this.photos.length === 0) {
+            grid.innerHTML = '<p>Aucune photo trouvée pour cette période.</p>';
+            return;
+        }
+
+        grid.innerHTML = this.photos.map(photo => {
+            const date = new Date(photo.fileCreatedAt || photo.localDateTime).toLocaleDateString('fr-FR');
+            const location = photo.city && photo.country ? `${photo.city}, ${photo.country}` :
+                photo.country ? photo.country :
+                    photo.city ? photo.city : 'Lieu inconnu';
+
+            return `
+            <div class="photo-card" data-photo-id="${photo.id}">
+                <img src="${photo.thumbnailUrl}" alt="${photo.originalFileName}" 
+                     loading="lazy" style="width: 100%; height: 200px; object-fit: cover;" />
+                <div class="photo-header">
+                    <div class="photo-name">${photo.originalFileName || 'Sans nom'}</div>
+                    <div class="photo-date">📅 ${date}</div>
+                    <div class="photo-location">📍 ${location}</div>
+                </div>
+            </div>
+        `;
+        }).join('');
+
+        // Afficher la section photos
+        ui.toggleSection('photosSection', true);
+    }
+    XdisplayPhotos() {
         const grid = document.getElementById('photosGrid');
         if (!grid) {
             console.error('Élément photosGrid introuvable');
