@@ -227,29 +227,52 @@
             // Ajouter les fonctionnalités des boutons de développement
             function addDevButtons() {
                 // Bouton changer token
-                document.getElementById('changeTokenBtn').addEventListener('click', function() {
+                document.getElementById('changeTokenBtn').addEventListener('click', async function() {
+                    console.log('🔑 Clic sur bouton token');
+                    console.log('- window.immichAPI existe:', !!window.immichAPI);
+                    console.log('- immichAPI global existe:', typeof immichAPI !== 'undefined');
+                    
+                    // Attendre que l'API soit disponible si nécessaire
+                    let apiInstance = window.immichAPI;
+                    if (!apiInstance && typeof immichAPI !== 'undefined') {
+                        apiInstance = immichAPI;
+                    }
+                    
+                    // Si toujours pas disponible, attendre un peu
+                    if (!apiInstance) {
+                        console.log('⏳ API non disponible, attente...');
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        apiInstance = window.immichAPI || (typeof immichAPI !== 'undefined' ? immichAPI : null);
+                    }
+                    
+                    if (!apiInstance) {
+                        alert('API non initialisée. Attendez quelques secondes et réessayez, ou rechargez la page.');
+                        return;
+                    }
+                    
                     if (confirm('Voulez-vous supprimer le token actuel et en saisir un nouveau ?')) {
-                        // Supprimer le token actuel
-                        localStorage.removeItem('immich_api_key');
-                        if (window.immichAPI) {
-                            immichAPI.setApiKey(null);
-                        }
-
-                        // Forcer une nouvelle demande de token
-                        if (window.immichAPI) {
-                            immichAPI.promptForApiKey().then(success => {
-                                if (success) {
-                                    alert('Nouveau token configuré avec succès !');
-                                    // Optionnel : recharger l'app
-                                    if (confirm('Recharger l\'application pour appliquer le nouveau token ?')) {
-                                        location.reload();
-                                    }
-                                } else {
-                                    alert('Configuration du token annulée.');
+                        try {
+                            // Supprimer le token actuel
+                            localStorage.removeItem('immich_api_key');
+                            apiInstance.setApiKey(null);
+                            
+                            console.log('🔄 Demande nouveau token...');
+                            
+                            // Forcer une nouvelle demande de token
+                            const success = await apiInstance.promptForApiKey();
+                            
+                            if (success) {
+                                alert('Nouveau token configuré avec succès !');
+                                // Optionnel : recharger l'app
+                                if (confirm('Recharger l\'application pour appliquer le nouveau token ?')) {
+                                    location.reload();
                                 }
-                            });
-                        } else {
-                            alert('API non initialisée. Rechargez la page.');
+                            } else {
+                                alert('Configuration du token annulée.');
+                            }
+                        } catch (error) {
+                            console.error('❌ Erreur:', error);
+                            alert('Erreur: ' + error.message);
                         }
                     }
                 });
@@ -333,32 +356,47 @@
 
         })();
 
-        // Fonctions globales de debug
+        // Fonctions globales de debug et de secours
         window.forceTokenChange = async function() {
             try {
                 console.log('🔑 Forçage du changement de token...');
                 
+                // Chercher l'instance API de toutes les façons possibles
+                let apiInstance = window.immichAPI || (typeof immichAPI !== 'undefined' ? immichAPI : null);
+                
+                if (!apiInstance) {
+                    console.log('⚠️ Aucune instance API trouvée, création d\'une nouvelle...');
+                    
+                    // Vérifier si la classe ImmichAPI existe
+                    if (typeof ImmichAPI !== 'undefined') {
+                        apiInstance = new ImmichAPI();
+                        window.immichAPI = apiInstance;
+                        console.log('✅ Nouvelle instance API créée');
+                    } else {
+                        alert('Classes API non chargées. Rechargez la page et attendez le chargement complet.');
+                        return false;
+                    }
+                }
+                
                 // Supprimer l'ancien token
                 localStorage.removeItem('immich_api_key');
-                if (window.immichAPI) {
-                    immichAPI.setApiKey(null);
-                }
-                
-                // Créer une nouvelle instance si nécessaire
-                if (!window.immichAPI) {
-                    alert('API non initialisée. Attendez le chargement complet.');
-                    return false;
-                }
+                apiInstance.setApiKey(null);
                 
                 // Demander le nouveau token
-                const success = await immichAPI.promptForApiKey();
+                const success = await apiInstance.promptForApiKey();
                 
                 if (success) {
                     console.log('✅ Nouveau token configuré');
                     
                     // Tester la connexion
-                    const isConnected = await immichAPI.testConnection();
-                    console.log('🔗 Test connexion:', isConnected);
+                    try {
+                        const isConnected = await apiInstance.testConnection();
+                        console.log('🔗 Test connexion:', isConnected);
+                        alert('Token configuré et testé avec succès !');
+                    } catch (error) {
+                        console.log('⚠️ Token configuré mais test de connexion échoué:', error.message);
+                        alert('Token configuré, mais vérifiez votre configuration Immich.');
+                    }
                     
                     return true;
                 } else {
@@ -376,11 +414,46 @@
         window.debugToken = function() {
             console.log('🔍 DEBUG TOKEN:');
             console.log('- localStorage token:', localStorage.getItem('immich_api_key') ? 'Présent' : 'Absent');
-            console.log('- immichAPI instance:', !!window.immichAPI);
+            console.log('- window.immichAPI:', !!window.immichAPI);
+            console.log('- global immichAPI:', typeof immichAPI !== 'undefined');
+            console.log('- ImmichAPI class:', typeof ImmichAPI !== 'undefined');
+            
             if (window.immichAPI) {
                 console.log('- immichAPI.apiKey:', !!window.immichAPI.apiKey);
                 console.log('- immichAPI.baseURL:', window.immichAPI.baseURL);
             }
+            
+            // Lister tous les objets globaux contenant 'immich'
+            const globals = Object.keys(window).filter(key => key.toLowerCase().includes('immich'));
+            console.log('- Objets globaux avec "immich":', globals);
+        };
+
+        // Fonction de diagnostic complet
+        window.debugApp = function() {
+            console.log('🔍 DEBUG APPLICATION:');
+            console.log('===================');
+            
+            // Scripts chargés
+            const scripts = Array.from(document.querySelectorAll('script[src]')).map(s => s.src);
+            console.log('Scripts chargés:', scripts);
+            
+            // Classes disponibles
+            const classes = ['ImmichAPI', 'UIManager', 'PhotosManager', 'GPSManager', 'ImmichGPSApp'];
+            classes.forEach(className => {
+                console.log(`- ${className}:`, typeof window[className] !== 'undefined');
+            });
+            
+            // Instances globales
+            const instances = ['immichAPI', 'ui', 'photosManager', 'gpsManager', 'app'];
+            instances.forEach(instanceName => {
+                console.log(`- ${instanceName}:`, typeof window[instanceName] !== 'undefined');
+            });
+            
+            return {
+                scriptsLoaded: scripts.length,
+                classesAvailable: classes.filter(c => typeof window[c] !== 'undefined'),
+                instancesAvailable: instances.filter(i => typeof window[i] !== 'undefined')
+            };
         };
     </script>
 </body>
