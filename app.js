@@ -148,10 +148,96 @@ class App {
     /**
      * Charge les photos de la période
      */
-    /**
-         * Charge les photos de la période
-         */
+
     async loadPhotos() {
+        if (!this.currentPeriod) {
+            ui.showMessage('Sélectionnez une période', 'warning');
+            return;
+        }
+
+        try {
+            ui.toggleButton('loadPhotosBtn', false, 'Chargement...');
+            ui.showMessage('Chargement des photos...', 'info');
+
+            const { year, month } = this.currentPeriod;
+
+            // Récupérer les buckets pour cette période
+            const relevantBuckets = this.timeBuckets.filter(bucket => {
+                const bucketYear = bucket.timeBucket.substring(0, 4);
+                if (bucketYear !== year) return false;
+
+                if (month) {
+                    const bucketMonth = bucket.timeBucket.substring(5, 7);
+                    return bucketMonth === month;
+                }
+
+                return true;
+            });
+
+            console.log(`Buckets trouvés pour ${year}${month ? '-' + month : ''}:`, relevantBuckets);
+
+            this.photos = [];
+            let processedBuckets = 0;
+            let totalPhotosExpected = relevantBuckets.reduce((sum, b) => sum + b.count, 0);
+
+            ui.showMessage(`Chargement de ${totalPhotosExpected} photos...`, 'info');
+
+            for (const bucket of relevantBuckets) {
+                ui.updateProgress(
+                    (processedBuckets / relevantBuckets.length) * 100,
+                    `Chargement ${bucket.timeBucket} (${bucket.count} photos)...`,
+                    true
+                );
+
+                try {
+                    console.log(`Chargement bucket: ${bucket.timeBucket}`);
+                    const bucketPhotos = await api.getPhotosFromBucket(bucket.timeBucket);
+
+                    console.log(`Photos reçues pour ${bucket.timeBucket}: ${bucketPhotos.length}`);
+
+                    if (bucketPhotos.length > 0) {
+                        this.photos = this.photos.concat(bucketPhotos);
+                        console.log(`Total photos maintenant: ${this.photos.length}`);
+                    }
+
+                } catch (bucketError) {
+                    console.warn(`Erreur pour bucket ${bucket.timeBucket}:`, bucketError);
+                }
+
+                processedBuckets++;
+            }
+
+            ui.updateProgress(0, '', false);
+
+            console.log(`Chargement terminé: ${this.photos.length} photos sur ${totalPhotosExpected} attendues`);
+
+            // Afficher les statistiques
+            ui.updateStats({
+                total: this.photos.length,
+                analyzed: 0,
+                withGPS: 0
+            });
+
+            ui.toggleSection('statsSection', true);
+
+            if (this.photos.length > 0) {
+                const periodName = month ? `${this.getMonthName(month)} ${year}` : year;
+                ui.showMessage(`${this.photos.length} photos chargées pour ${periodName}`, 'success');
+                this.displayPhotos();
+            } else {
+                ui.showMessage('Aucune photo trouvée pour cette période', 'warning');
+            }
+
+        } catch (error) {
+            console.error('Erreur chargement photos:', error);
+            ui.showMessage(`Erreur: ${error.message}`, 'error');
+            ui.updateProgress(0, '', false);
+        } finally {
+            ui.toggleButton('loadPhotosBtn', true, '📥 Charger les photos de ce mois');
+        }
+    }
+
+    async ZZloadPhotos() {
         if (!this.currentPeriod) {
             ui.showMessage('Sélectionnez une période', 'warning');
             return;

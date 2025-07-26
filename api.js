@@ -85,6 +85,36 @@ class ImmichAPI {
         return await this.makeRequest('/timeline/buckets');
     }
     /**
+     * Récupère les photos d'un bucket de timeline
+     */
+    async getPhotosFromBucket(timeBucket) {
+        const result = await this.makeRequest(`/timeline/bucket?timeBucket=${timeBucket}`);
+        
+        // Convertir le format "colonnes" en format "lignes"
+        const photos = [];
+        if (result.id && result.id.length > 0) {
+            for (let i = 0; i < result.id.length; i++) {
+                photos.push({
+                    id: result.id[i],
+                    originalFileName: result.originalFileName?.[i] || `photo_${i}`,
+                    fileCreatedAt: result.fileCreatedAt?.[i],
+                    localDateTime: result.localDateTime?.[i], 
+                    city: result.city?.[i],
+                    country: result.country?.[i],
+                    duration: result.duration?.[i],
+                    isImage: result.isImage?.[i],
+                    isFavorite: result.isFavorite?.[i],
+                    ratio: result.ratio?.[i],
+                    thumbnailUrl: `/immich-api/api/assets/${result.id[i]}/thumbnail`
+                });
+            }
+        }
+        
+        return photos;
+    }
+
+
+    /**
      * Recherche des photos avec filtrage par date optimisé
      */
     async searchPhotosByPeriod(year, month = null) {
