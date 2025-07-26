@@ -224,7 +224,7 @@ section h2 {
 
 /* ===== STATISTIQUES ===== */
 .stats {
-    display: flex;
+    display: flex !important;
     gap: 20px;
     flex-wrap: wrap;
     padding: 20px 30px;
