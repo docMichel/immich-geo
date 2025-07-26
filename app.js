@@ -148,7 +148,62 @@ class App {
     /**
      * Charge les photos de la période
      */
+    /**
+         * Charge les photos de la période
+         */
     async loadPhotos() {
+        if (!this.currentPeriod) {
+            ui.showMessage('Sélectionnez une période', 'warning');
+            return;
+        }
+
+        try {
+            ui.toggleButton('loadPhotosBtn', false, 'Chargement...');
+            ui.showMessage('Recherche des photos par période...', 'info');
+
+            const { year, month } = this.currentPeriod;
+
+            // Utiliser la nouvelle méthode optimisée
+            this.photos = await api.searchPhotosByPeriod(year, month);
+
+            console.log(`Photos trouvées pour ${year}${month ? '-' + month : ''}: ${this.photos.length}`);
+
+            // Afficher les statistiques
+            ui.updateStats({
+                total: this.photos.length,
+                analyzed: 0,
+                withGPS: 0
+            });
+
+            ui.toggleSection('statsSection', true);
+
+            if (this.photos.length > 0) {
+                ui.showMessage(`${this.photos.length} photos trouvées pour ${year}${month ? '-' + this.getMonthName(month) : ''}`, 'success');
+                this.displayPhotos();
+            } else {
+                ui.showMessage('Aucune photo trouvée pour cette période', 'warning');
+            }
+
+        } catch (error) {
+            console.error('Erreur chargement photos:', error);
+            ui.showMessage(`Erreur: ${error.message}`, 'error');
+        } finally {
+            ui.toggleButton('loadPhotosBtn', true, '📥 Charger les photos de ce mois');
+        }
+    }
+
+    /**
+     * Utilitaire pour nom du mois
+     */
+    getMonthName(monthNum) {
+        const months = [
+            'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+            'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
+        ];
+        return months[parseInt(monthNum) - 1] || monthNum;
+    }
+
+    async XloadPhotos() {
         if (!this.currentPeriod) {
             ui.showMessage('Sélectionnez une période', 'warning');
             return;
