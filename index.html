@@ -1,24 +1,26 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>📍 Gestionnaire GPS Photos Immich</title>
-    
+
     <!-- Anti-cache pour développement -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    
+
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <div class="container">
         <!-- En-tête -->
         <header class="header">
             <h1>📍 Gestionnaire GPS Photos Immich</h1>
             <p>Gestion par mois - Copie/Colle GPS entre photos</p>
-            
+
             <!-- Boutons de développement -->
             <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
                 <button id="changeTokenBtn" class="btn" style="background: rgba(255,255,255,0.2); color: white;">
@@ -33,21 +35,21 @@
         <!-- Navigation par dates -->
         <section class="date-navigation">
             <h2>📅 Navigation par dates</h2>
-            
+
             <div class="date-controls">
                 <button id="loadPeriodsBtn" class="btn btn-primary">
                     🔄 Charger les périodes disponibles
                 </button>
-                
+
                 <div class="selectors" id="dateSelectors" style="display: none;">
                     <select id="yearSelect" disabled>
                         <option value="">Sélectionner une année...</option>
                     </select>
-                    
+
                     <select id="monthSelect" disabled>
                         <option value="">Sélectionner un mois...</option>
                     </select>
-                    
+
                     <button id="loadPhotosBtn" class="btn btn-success" disabled>
                         📥 Charger les photos
                     </button>
@@ -84,6 +86,11 @@
                 <div class="stat-label">Sans GPS</div>
             </div>
         </section>
+        <!-- Grille des photos -->
+        <section class="photos-section" id="photosSection" style="display: none;">
+            <h2>🖼️ Photos</h2>
+            <div class="photos-grid" id="photosGrid"></div>
+        </section>
     </div>
 
     <!-- Zone de messages -->
@@ -92,10 +99,10 @@
     <!-- Scripts -->
     <script>
         // Chargement des scripts avec anti-cache
-        (function() {
+        (function () {
             const timestamp = Date.now();
             console.log('🔄 Chargement avec timestamp:', timestamp);
-            
+
             function loadScript(src) {
                 return new Promise((resolve, reject) => {
                     const script = document.createElement('script');
@@ -105,44 +112,45 @@
                     document.head.appendChild(script);
                 });
             }
-            
+
             async function loadAllScripts() {
                 try {
                     await loadScript('api.js');
                     console.log('✅ api.js chargé');
-                    
+
                     await loadScript('ui.js');
                     console.log('✅ ui.js chargé');
-                    
+
                     await loadScript('app.js');
                     console.log('✅ app.js chargé');
-                    
+
                     // Boutons de développement
                     initDevButtons();
-                    
+
                 } catch (error) {
                     console.error('❌ Erreur chargement:', error);
                 }
             }
-            
+
             function initDevButtons() {
                 // Changer token
-                document.getElementById('changeTokenBtn').onclick = async function() {
+                document.getElementById('changeTokenBtn').onclick = async function () {
                     api.setApiKey(null);
                     const success = await api.promptForApiKey();
                     if (success) {
                         alert('Token mis à jour !');
                     }
                 };
-                
+
                 // Recharger
-                document.getElementById('reloadBtn').onclick = function() {
+                document.getElementById('reloadBtn').onclick = function () {
                     location.reload();
                 };
             }
-            
+
             loadAllScripts();
         })();
     </script>
 </body>
+
 </html>
