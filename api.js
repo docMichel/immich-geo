@@ -84,7 +84,69 @@ class ImmichAPI {
     async getTimeBuckets() {
         return await this.makeRequest('/timeline/buckets');
     }
+    /**
+     * Recherche des photos avec filtrage par date optimisé
+     */
+    async searchPhotosByPeriod(year, month = null) {
+        const allPhotos = [];
+        let page = 1;
+        const maxPages = 20; // Limite pour éviter les timeouts
 
+        while (page <= maxPages) {
+            try {
+                const result = await this.makeRequest('/search/metadata', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        page,
+                        size: 250, // Taille raisonnable
+                        query: '',
+                        clip: false,
+                        type: 'IMAGE'
+                    })
+                });
+
+                const photos = result.assets?.items || [];
+
+                if (photos.length === 0) {
+                    break; // Plus de photos
+                }
+
+                // Filtrer par période PENDANT le chargement
+                const periodPhotos = photos.filter(photo => {
+                    const date = photo.fileCreatedAt || photo.localDateTime;
+                    if (!date) return false;
+
+                    const photoYear = date.substring(0, 4);
+                    if (photoYear !== year) return false;
+
+                    if (month) {
+                        const photoMonth = date.substring(5, 7);
+                        return photoMonth === month;
+                    }
+
+                    return true;
+                });
+
+                allPhotos.push(...periodPhotos);
+
+                // Si on a trouvé assez de photos de la période, on peut s'arrêter
+                if (periodPhotos.length > 0 && photos.length < 250) {
+                    break;
+                }
+
+                page++;
+
+                // Petit délai pour éviter de surcharger l'API
+                await new Promise(resolve => setTimeout(resolve, 100));
+
+            } catch (error) {
+                console.warn(`Erreur page ${page}:`, error);
+                break;
+            }
+        }
+
+        return allPhotos;
+    }
     /**
      * Recherche des photos
      */
