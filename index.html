@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>📍 Gestionnaire GPS Photos Immich SANS CACHE</title>
-    
+
     <!-- ANTI-CACHE : Empêcher la mise en cache -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    
+
     <!-- CSS avec timestamp anti-cache -->
     <link rel="stylesheet" href="styles.css?v=" id="css-link">
 </head>
@@ -19,19 +19,23 @@
         <header class="header">
             <h1>📍 Gestionnaire GPS Photos Immich</h1>
             <p>Gestion par mois - Copie/Colle GPS entre photos</p>
-            
+
             <!-- Boutons de développement -->
             <div style="margin-top: 15px; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
-                <button id="changeTokenBtn" class="btn" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">
+                <button id="changeTokenBtn" class="btn"
+                    style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">
                     🔑 Changer le token d'API
                 </button>
-                <button id="clearCacheBtn" class="btn" style="background: rgba(255,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.3);">
+                <button id="clearCacheBtn" class="btn"
+                    style="background: rgba(255,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.3);">
                     🗑️ Vider le cache
                 </button>
-                <button id="reloadAppBtn" class="btn" style="background: rgba(0,255,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.3);">
+                <button id="reloadAppBtn" class="btn"
+                    style="background: rgba(0,255,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.3);">
                     🔄 Recharger l'app
                 </button>
-                <button id="debugInfoBtn" class="btn" style="background: rgba(0,0,255,0.3); color: white; border: 1px solid rgba(255,255,255,0.3);">
+                <button id="debugInfoBtn" class="btn"
+                    style="background: rgba(0,0,255,0.3); color: white; border: 1px solid rgba(255,255,255,0.3);">
                     🐛 Info Debug
                 </button>
             </div>
@@ -40,21 +44,21 @@
         <!-- Section de navigation par dates -->
         <section class="date-navigation">
             <h2>📅 Navigation par dates</h2>
-            
+
             <div class="date-controls">
                 <button id="loadPeriodsBtn" class="btn btn-primary">
                     🔄 Charger les périodes disponibles
                 </button>
-                
+
                 <div class="selectors" id="dateSelectors" style="display: none;">
                     <select id="yearSelect" disabled>
                         <option value="">Sélectionner une année...</option>
                     </select>
-                    
+
                     <select id="monthSelect" disabled>
                         <option value="">Sélectionner un mois...</option>
                     </select>
-                    
+
                     <button id="loadPhotosBtn" class="btn btn-success" disabled>
                         📥 Charger les photos de ce mois
                     </button>
@@ -95,14 +99,14 @@
         <!-- Contrôles des photos -->
         <section class="photo-controls" id="photoControls" style="display: none;">
             <h2>🖼️ Gestion des photos</h2>
-            
+
             <div class="controls-row">
                 <div class="filter-buttons">
                     <button class="btn btn-filter active" data-filter="all">Toutes</button>
                     <button class="btn btn-filter" data-filter="gps">Avec GPS</button>
                     <button class="btn btn-filter" data-filter="no-gps">Sans GPS</button>
                 </div>
-                
+
                 <div class="action-buttons">
                     <button id="analyzeGpsBtn" class="btn btn-warning">
                         🔍 Analyser GPS détaillé
@@ -133,7 +137,7 @@
         <!-- Grille des photos -->
         <section class="photos-section" id="photosSection" style="display: none;">
             <div class="photos-grid" id="photosGrid"></div>
-            
+
             <!-- Pagination si beaucoup de photos -->
             <div class="pagination" id="pagination" style="display: none;">
                 <button id="prevPageBtn" class="btn btn-secondary">‹ Précédent</button>
@@ -175,10 +179,10 @@
         (function() {
             const timestamp = Date.now();
             console.log('🔄 Chargement avec timestamp anti-cache:', timestamp);
-            
+
             // Mettre à jour le CSS avec timestamp
             document.getElementById('css-link').href = 'styles.css?v=' + timestamp;
-            
+
             // Fonction pour charger les scripts avec anti-cache
             function loadScript(src) {
                 return new Promise((resolve, reject) => {
@@ -189,39 +193,67 @@
                     document.head.appendChild(script);
                 });
             }
-            
+
             // Charger tous les scripts dans l'ordre
             async function loadAllScripts() {
                 try {
                     console.log('📥 Chargement des scripts...');
                     await loadScript('api.js');
                     console.log('✅ api.js chargé');
-                    
+
                     await loadScript('ui.js');
                     console.log('✅ ui.js chargé');
-                    
+
                     await loadScript('photos.js');
                     console.log('✅ photos.js chargé');
-                    
+
                     await loadScript('gps.js');
                     console.log('✅ gps.js chargé');
-                    
+
                     await loadScript('app.js');
                     console.log('✅ app.js chargé');
-                    
+
                     console.log('🎉 Tous les scripts chargés avec succès');
-                    
+
                     // Ajouter les gestionnaires pour les boutons de développement
                     addDevButtons();
-                    
+
                 } catch (error) {
                     console.error('❌ Erreur chargement script:', error);
                     alert('Erreur de chargement des scripts. Vérifiez la console.');
                 }
             }
-            
+
             // Ajouter les fonctionnalités des boutons de développement
             function addDevButtons() {
+                // Bouton changer token
+                document.getElementById('changeTokenBtn').addEventListener('click', function() {
+                    if (confirm('Voulez-vous supprimer le token actuel et en saisir un nouveau ?')) {
+                        // Supprimer le token actuel
+                        localStorage.removeItem('immich_api_key');
+                        if (window.immichAPI) {
+                            immichAPI.setApiKey(null);
+                        }
+
+                        // Forcer une nouvelle demande de token
+                        if (window.immichAPI) {
+                            immichAPI.promptForApiKey().then(success => {
+                                if (success) {
+                                    alert('Nouveau token configuré avec succès !');
+                                    // Optionnel : recharger l'app
+                                    if (confirm('Recharger l\'application pour appliquer le nouveau token ?')) {
+                                        location.reload();
+                                    }
+                                } else {
+                                    alert('Configuration du token annulée.');
+                                }
+                            });
+                        } else {
+                            alert('API non initialisée. Rechargez la page.');
+                        }
+                    }
+                });
+
                 // Bouton vider cache
                 document.getElementById('clearCacheBtn').addEventListener('click', function() {
                     if (confirm('Vider tout le cache du navigateur pour cette application ?')) {
@@ -231,11 +263,11 @@
                                 localStorage.removeItem(key);
                             }
                         });
-                        
+
                         // Vider sessionStorage
                         sessionStorage.clear();
-                        
-                        // Tenter de vider le cache du navigateur (ne marche que sur certains navigateurs)
+
+                        // Tenter de vider le cache du navigateur
                         if ('caches' in window) {
                             caches.keys().then(names => {
                                 names.forEach(name => {
@@ -243,36 +275,41 @@
                                 });
                             });
                         }
-                        
+
                         alert('Cache vidé ! La page va se recharger.');
                         location.reload(true);
                     }
                 });
-                
+
                 // Bouton recharger app
                 document.getElementById('reloadAppBtn').addEventListener('click', function() {
                     location.reload(true);
                 });
-                
+
                 // Bouton debug info
                 document.getElementById('debugInfoBtn').addEventListener('click', function() {
                     const info = {
                         timestamp: new Date().toISOString(),
                         userAgent: navigator.userAgent,
                         localStorage: Object.keys(localStorage).filter(k => k.includes('immich') || k.includes('gps')),
-                        appState: window.debugApp ? window.debugApp.getState() : 'App non initialisée'
+                        apiKey: localStorage.getItem('immich_api_key') ? 'Présent (caché)' : 'Absent',
+                        appState: window.debugApp ? window.debugApp.getState() : 'App non initialisée',
+                        immichAPI: window.immichAPI ? {
+                            hasKey: !!window.immichAPI.apiKey,
+                            baseURL: window.immichAPI.baseURL
+                        } : 'Non initialisé'
                     };
-                    
+
                     console.log('🐛 DEBUG INFO:', info);
                     alert('Informations de debug dans la console (F12)');
                 });
-                
+
                 console.log('🔧 Boutons de développement activés');
             }
-            
+
             // Démarrer le chargement
             loadAllScripts();
-            
+
             // Ajouter des raccourcis clavier pour le développement
             document.addEventListener('keydown', function(e) {
                 // Ctrl+Shift+R : Rechargement forcé
@@ -280,21 +317,71 @@
                     e.preventDefault();
                     location.reload(true);
                 }
-                
+
                 // Ctrl+Shift+C : Vider cache
                 if (e.ctrlKey && e.shiftKey && e.key === 'C') {
                     e.preventDefault();
                     document.getElementById('clearCacheBtn').click();
                 }
-                
+
                 // Ctrl+Shift+D : Debug info
                 if (e.ctrlKey && e.shiftKey && e.key === 'D') {
                     e.preventDefault();
                     document.getElementById('debugInfoBtn').click();
                 }
             });
-            
+
         })();
+
+        // Fonctions globales de debug
+        window.forceTokenChange = async function() {
+            try {
+                console.log('🔑 Forçage du changement de token...');
+                
+                // Supprimer l'ancien token
+                localStorage.removeItem('immich_api_key');
+                if (window.immichAPI) {
+                    immichAPI.setApiKey(null);
+                }
+                
+                // Créer une nouvelle instance si nécessaire
+                if (!window.immichAPI) {
+                    alert('API non initialisée. Attendez le chargement complet.');
+                    return false;
+                }
+                
+                // Demander le nouveau token
+                const success = await immichAPI.promptForApiKey();
+                
+                if (success) {
+                    console.log('✅ Nouveau token configuré');
+                    
+                    // Tester la connexion
+                    const isConnected = await immichAPI.testConnection();
+                    console.log('🔗 Test connexion:', isConnected);
+                    
+                    return true;
+                } else {
+                    console.log('❌ Configuration annulée');
+                    return false;
+                }
+                
+            } catch (error) {
+                console.error('❌ Erreur changement token:', error);
+                alert('Erreur: ' + error.message);
+                return false;
+            }
+        };
+
+        window.debugToken = function() {
+            console.log('🔍 DEBUG TOKEN:');
+            console.log('- localStorage token:', localStorage.getItem('immich_api_key') ? 'Présent' : 'Absent');
+            console.log('- immichAPI instance:', !!window.immichAPI);
+            if (window.immichAPI) {
+                console.log('- immichAPI.apiKey:', !!window.immichAPI.apiKey);
+                console.log('- immichAPI.baseURL:', window.immichAPI.baseURL);
+            }
+        };
     </script>
 </body>
 </html>
